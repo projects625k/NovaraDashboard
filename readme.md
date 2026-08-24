@@ -9,6 +9,15 @@ convert.py   command-line converter: Excel -> data.json (same rules as the in-br
 readme.md    this file
 ```
 
+## Zero-dependency build (v1.1)
+
+`index.html` now has **ECharts, SheetJS and a snapshot of data.json embedded inside it**. Consequences:
+
+- Double-click `index.html` and it works — no web server, no internet, no CDN, no corporate-firewall issues.
+- Data priority on load: `data.json` next to the file (when served over http/GitHub Pages) → last Excel uploaded in this browser → embedded snapshot.
+- To refresh the embedded snapshot after a new upload, re-run `python convert.py file.xlsx` and commit `data.json`; the live site reads `data.json` first, so the snapshot only matters for offline double-click use.
+- File size is ~2.3 MB; GitHub Pages serves it fine.
+
 ## 1. Quick start (local)
 
 Open `index.html` through a local web server (browsers block `fetch('data.json')` from `file://`):
