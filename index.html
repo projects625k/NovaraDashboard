@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Novara Business Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.1/echarts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* ============================================================
+   NOVARA BI — Design tokens
+   ============================================================ */
+:root{
+  --bg:#F5F7FA; --surface:#FFFFFF; --surface-2:#F9FAFC; --border:#E3E8EF; --border-strong:#CBD3DE;
+  --navy:#0B1F3A; --navy-2:#132C4F; --accent:#2F6FED; --accent-soft:#E8F0FE;
+  --text:#0F172A; --text-2:#475569; --text-3:#8A94A6;
+  --green:#15803D; --green-soft:#E7F6EC; --red:#B91C1C; --red-soft:#FDECEC; --amber:#B45309; --amber-soft:#FEF3DC; --orange:#C2410C;
+  --shadow:0 1px 2px rgba(15,23,42,.04),0 4px 14px rgba(15,23,42,.05);
+  --shadow-lg:0 12px 40px rgba(11,31,58,.14);
+  --radius:12px; --sidebar:236px; --header:64px;
+  --font:'Inter',system-ui,sans-serif; --display:'Inter Tight','Inter',sans-serif; --mono:'JetBrains Mono',monospace;
+}
+[data-theme="dark"]{
+  --bg:#0C1220; --surface:#141C2C; --surface-2:#1A2333; --border:#232E42; --border-strong:#33405A;
+  --navy:#0A1628; --navy-2:#111F38; --accent:#5B8DEF; --accent-soft:#1B2B4A;
+  --text:#E8EDF5; --text-2:#A9B4C6; --text-3:#6F7C93;
+  --green:#3DBE6C; --green-soft:#12301E; --red:#F06B6B; --red-soft:#3A1A1A; --amber:#F2B04A; --amber-soft:#3A2C12;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font);font-size:13.5px;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+a{color:var(--accent);text-decoration:none}
+h1,h2,h3,h4{font-family:var(--display);letter-spacing:-.01em}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+
+/* Layout */
+#app{display:grid;grid-template-columns:var(--sidebar) 1fr;grid-template-rows:var(--header) 1fr;height:100vh}
+.sidebar{grid-row:1/3;background:var(--navy);color:#fff;display:flex;flex-direction:column;padding:18px 14px;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 22px}
+.brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#2F6FED,#7BA6FF);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:16px;color:#fff;overflow:hidden}
+.brand .logo img{width:100%;height:100%;object-fit:cover}
+.brand .t1{font-family:var(--display);font-weight:700;font-size:14.5px;line-height:1.15}
+.brand .t2{font-size:11px;color:#93A4C2;letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav .sec{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#6F86AD;padding:14px 10px 6px}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px;color:#C7D2E6;font-weight:500;font-size:13px;transition:.15s}
+.nav a svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav a.active{background:rgba(255,255,255,.12);color:#fff}
+.nav a .badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:600;padding:1px 7px;border-radius:99px}
+.sidebar .foot{margin-top:auto;padding:12px 8px 0;font-size:11px;color:#6F86AD;line-height:1.5}
+
+.header{grid-column:2;display:flex;align-items:center;gap:14px;padding:0 24px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:30}
+.header h1{font-size:17px;font-weight:600}
+.header .date{font-size:12px;color:var(--text-3);margin-left:4px;white-space:nowrap}
+.search{position:relative;flex:1;max-width:520px;margin-left:auto}
+.search input{width:100%;height:38px;border:1px solid var(--border);border-radius:9px;padding:0 12px 0 36px;background:var(--surface-2);outline:none;transition:.15s}
+.search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.search svg{position:absolute;left:12px;top:11px;width:16px;height:16px;stroke:var(--text-3);fill:none;stroke-width:2}
+.search-results{position:absolute;top:44px;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);max-height:420px;overflow:auto;display:none;z-index:50}
+.search-results.open{display:block}
+.search-results .grp{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);padding:10px 14px 4px}
+.search-results .it{padding:8px 14px;cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+.search-results .it:hover{background:var(--surface-2)}
+.search-results .it small{color:var(--text-3)}
+.hdr-meta{font-size:11.5px;color:var(--text-3);text-align:right;line-height:1.4;white-space:nowrap}
+.hdr-meta b{color:var(--text-2);font-weight:500}
+
+.main{grid-column:2;overflow-y:auto;padding:0 24px 40px;position:relative}
+.filterbar{position:sticky;top:0;z-index:20;background:var(--bg);padding:14px 0 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-bottom:1px solid var(--border);margin-bottom:18px}
+.filterbar .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin-right:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;width:100%;padding-top:6px}
+.chips:empty{display:none}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent);border:1px solid transparent;padding:3px 9px;border-radius:99px;font-size:12px;font-weight:500}
+.chip b{font-weight:600}
+.chip button{font-size:14px;line-height:1;color:var(--accent);opacity:.7}
+.chip button:hover{opacity:1}
+
+/* Controls */
+.btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--border);background:var(--surface);font-weight:500;font-size:13px;transition:.15s;white-space:nowrap}
+.btn:hover{border-color:var(--border-strong);background:var(--surface-2)}
+.btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+[data-theme="dark"] .btn.primary{background:var(--accent);border-color:var(--accent)}
+.btn.primary:hover{opacity:.92}
+.btn.accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.danger{color:var(--red);border-color:var(--red-soft);background:var(--red-soft)}
+.btn.sm{height:28px;padding:0 10px;font-size:12px}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{padding:5px 11px;font-size:12px;font-weight:500;color:var(--text-2)}
+.seg button.on{background:var(--navy);color:#fff}
+[data-theme="dark"] .seg button.on{background:var(--accent)}
+select.sel,input.inp,textarea.inp{height:34px;border:1px solid var(--border);border-radius:9px;padding:0 10px;background:var(--surface);outline:none;min-width:120px}
+textarea.inp{height:auto;padding:8px 10px}
+select.sel:focus,input.inp:focus,textarea.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+input[type=date].inp{min-width:140px}
+
+/* Multi-select */
+.ms{position:relative}
+.ms .ms-btn{display:flex;align-items:center;gap:6px;height:34px;padding:0 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface);font-size:12.5px;min-width:110px;max-width:220px}
+.ms .ms-btn .v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:left;color:var(--text-2)}
+.ms .ms-btn .v.has{color:var(--text);font-weight:500}
+.ms .ms-btn .cnt{background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:99px}
+.ms .ms-btn .car{width:12px;height:12px;stroke:var(--text-3);fill:none;stroke-width:2}
+.ms.open .ms-btn{border-color:var(--accent)}
+.ms .ms-pop{display:none;position:absolute;top:38px;left:0;min-width:240px;max-width:320px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);z-index:40;padding:8px}
+.ms.open .ms-pop{display:block}
+.ms .ms-pop input{width:100%;height:30px;border:1px solid var(--border);border-radius:7px;padding:0 8px;margin-bottom:6px;background:var(--surface-2);outline:none}
+.ms .ms-list{max-height:260px;overflow:auto}
+.ms .ms-list label{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12.5px}
+.ms .ms-list label:hover{background:var(--surface-2)}
+.ms .ms-list label small{margin-left:auto;color:var(--text-3)}
+.ms .ms-foot{display:flex;justify-content:space-between;padding:6px 4px 0;font-size:12px}
+.ms .ms-foot button{color:var(--accent);font-weight:500}
+
+/* Pages */
+.page{display:none;animation:fade .25s ease}
+.page.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.ph h2{font-size:21px;font-weight:600}
+.ph p{color:var(--text-2);margin-top:3px;font-size:13px}
+.ph .acts{display:flex;gap:8px;flex-wrap:wrap}
+.grid{display:grid;gap:16px}
+.g5{grid-template-columns:repeat(5,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.g23{grid-template-columns:2fr 1fr}.g32{grid-template-columns:3fr 2fr}
+.mt{margin-top:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card .ch{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px 6px;flex-wrap:wrap}
+.card .ch h3{font-size:14px;font-weight:600}
+.card .ch p{font-size:12px;color:var(--text-3);margin-top:2px}
+.card .cb{padding:8px 18px 16px}
+.card .cb.flush{padding:0}
+.chart{width:100%;height:300px}
+.chart.tall{height:420px}.chart.short{height:230px}.chart.xl{height:520px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;color:var(--text-3);text-align:center;font-size:13px;gap:8px}
+.empty svg{width:34px;height:34px;stroke:var(--text-3);fill:none;stroke-width:1.6}
+
+/* KPI */
+.kpi{padding:16px 18px;position:relative;min-width:0}
+.kpi .l{font-size:11.5px;color:var(--text-2);font-weight:500;display:flex;align-items:center;gap:5px}
+.kpi .v{font-family:var(--display);font-size:24px;font-weight:700;margin-top:6px;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .v.sm{font-size:17px}
+.kpi .d{font-size:11.5px;margin-top:6px;color:var(--text-3);display:flex;align-items:center;gap:5px}
+.kpi .d .up{color:var(--green);font-weight:600}.kpi .d .dn{color:var(--red);font-weight:600}.kpi .d .nt{color:var(--text-3);font-weight:600}
+.kpi .sub{font-size:11.5px;color:var(--text-3);margin-top:4px}
+.info{display:inline-flex;width:14px;height:14px;border-radius:99px;border:1px solid var(--border-strong);color:var(--text-3);font-size:9.5px;align-items:center;justify-content:center;cursor:help;position:relative;font-weight:600}
+.info:hover::after{content:attr(data-tip);position:absolute;left:0;top:18px;background:var(--navy);color:#fff;padding:8px 10px;border-radius:8px;font-size:11.5px;font-weight:400;width:240px;z-index:60;line-height:1.45;white-space:normal}
+[title]{cursor:default}
+
+/* Tables */
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{text-align:left;padding:10px 12px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);border-bottom:1px solid var(--border);background:var(--surface-2);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0}
+.tbl th.r,.tbl td.r{text-align:right}
+.tbl th .s{font-size:9px;margin-left:3px;opacity:.6}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+.tbl tr:hover td{background:var(--surface-2)}
+.tbl tr.click{cursor:pointer}
+.tbl .rank{color:var(--text-3);font-weight:600;width:36px}
+.tbl-wrap{overflow:auto;max-height:560px}
+.tbl-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;font-size:12px;color:var(--text-2);border-top:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.tbl-foot .pg{display:flex;gap:4px}
+.tbl-foot .pg button{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);font-size:12px}
+.tbl-foot .pg button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+.tag.g{background:var(--green-soft);color:var(--green)}.tag.a{background:var(--amber-soft);color:var(--amber)}.tag.r{background:var(--red-soft);color:var(--red)}.tag.n{background:var(--surface-2);color:var(--text-2);border:1px solid var(--border)}.tag.b{background:var(--accent-soft);color:var(--accent)}
+.bar{height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;min-width:70px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.bar.g i{background:var(--green)}.bar.r i{background:var(--red)}.bar.a i{background:var(--amber)}
+.avatar{width:32px;height:32px;border-radius:99px;background:var(--accent-soft);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;overflow:hidden;flex:none}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.avatar.lg{width:88px;height:88px;font-size:28px;border-radius:20px}
+
+/* Insights / alerts */
+.ins{display:flex;flex-direction:column;gap:8px}
+.ins .i{display:flex;gap:10px;padding:10px 12px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);font-size:12.5px;line-height:1.45}
+.ins .i .dot{width:8px;height:8px;border-radius:99px;margin-top:5px;flex:none;background:var(--accent)}
+.ins .i.pos .dot{background:var(--green)}.ins .i.neg .dot{background:var(--red)}.ins .i.warn .dot{background:var(--amber)}
+.ins .i b{font-weight:600}
+.alert{display:flex;gap:12px;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);align-items:flex-start}
+.alert .k{font-size:10px;letter-spacing:.1em;font-weight:700;padding:3px 8px;border-radius:5px;flex:none;margin-top:1px}
+.alert.CRITICAL .k{background:var(--red-soft);color:var(--red)}.alert.WARNING .k{background:var(--amber-soft);color:var(--amber)}.alert.OPPORTUNITY .k,.alert.POSITIVE .k{background:var(--green-soft);color:var(--green)}.alert.CONCENTRATION .k{background:var(--accent-soft);color:var(--accent)}
+.alert p{font-size:12.5px;line-height:1.45}
+.alert small{display:block;color:var(--text-3);margin-top:2px}
+
+/* Profile */
+.profile{display:grid;grid-template-columns:auto 1fr auto;gap:20px;padding:20px;align-items:center}
+.profile .nm{font-family:var(--display);font-size:22px;font-weight:700}
+.profile .meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;font-size:12.5px;color:var(--text-2)}
+.profile .meta span b{color:var(--text);font-weight:600}
+.profile .fields{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.profile .fields label{font-size:11px;color:var(--text-3);display:block;margin-bottom:3px}
+.recency{text-align:center;padding:14px 22px;border-radius:12px;min-width:180px}
+.recency .n{font-family:var(--display);font-size:34px;font-weight:700;line-height:1}
+.recency .t{font-size:11.5px;margin-top:4px;font-weight:500}
+.recency.g{background:var(--green-soft);color:var(--green)}.recency.a{background:var(--amber-soft);color:var(--amber)}.recency.o{background:#FDE8DD;color:var(--orange)}.recency.r{background:var(--red-soft);color:var(--red)}
+.score{display:flex;align-items:center;gap:14px}
+.score .ring{width:74px;height:74px;border-radius:99px;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:22px}
+.score .ring i{width:58px;height:58px;border-radius:99px;background:var(--surface);display:grid;place-items:center;font-style:normal}
+
+/* Heatmap legend, misc */
+.legend{display:flex;gap:12px;font-size:11.5px;color:var(--text-2);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--text-3);line-height:1.5}
+.form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.form label{display:block;font-size:11.5px;color:var(--text-2);margin-bottom:4px;font-weight:500}
+.form .full{grid-column:1/-1}
+.form .inp,.form .sel{width:100%}
+.benefits{display:flex;flex-wrap:wrap;gap:6px}
+.benefits label{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);padding:4px 9px;border-radius:99px;font-size:12px;cursor:pointer}
+.benefits label:has(input:checked){background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+
+/* Modal / toast */
+.modal-bg{position:fixed;inset:0;background:rgba(11,31,58,.45);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border-radius:16px;width:100%;max-width:760px;max-height:92vh;overflow:auto;box-shadow:var(--shadow-lg)}
+.modal .mh{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)}
+.modal .mh h3{font-size:16px}
+.modal .mb{padding:20px 22px}
+.modal .mf{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid var(--border)}
+.modal.sm{max-width:440px}
+#toast{position:fixed;bottom:22px;right:22px;display:flex;flex-direction:column;gap:8px;z-index:200}
+.toast{background:var(--navy);color:#fff;padding:11px 16px;border-radius:10px;font-size:13px;box-shadow:var(--shadow-lg);animation:fade .2s;max-width:380px}
+.toast.err{background:var(--red)}.toast.ok{background:var(--green)}
+#loading{position:fixed;inset:0;background:rgba(255,255,255,.85);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:300;gap:14px}
+[data-theme="dark"] #loading{background:rgba(12,18,32,.88)}
+#loading.open{display:flex}
+.spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:99px;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#loading .pb{width:260px;height:6px;background:var(--border);border-radius:99px;overflow:hidden}
+#loading .pb i{display:block;height:100%;background:var(--accent);width:0;transition:.2s}
+
+/* Welcome */
+.welcome{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 140px)}
+.welcome .box{max-width:560px;text-align:center;padding:48px 40px;border:1px dashed var(--border-strong);border-radius:20px;background:var(--surface)}
+.welcome h2{font-size:26px;margin-bottom:8px}
+.welcome p{color:var(--text-2);margin-bottom:22px;line-height:1.5}
+.drop{border:2px dashed var(--border-strong);border-radius:14px;padding:34px;text-align:center;color:var(--text-2);transition:.15s;cursor:pointer;background:var(--surface-2)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop b{color:var(--accent)}
+
+/* Org chart */
+.org-wrap{position:relative;height:640px}
+.org-wrap.fs{position:fixed;inset:0;z-index:90;background:var(--surface);height:100vh;border-radius:0}
+.org-tools{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:2}
+
+/* Data tab */
+.step{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--border)}
+.step:last-child{border:none}
+.step .no{width:28px;height:28px;border-radius:99px;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:600;font-size:12px;flex:none}
+[data-theme="dark"] .step .no{background:var(--accent)}
+.step h4{font-size:14px;margin-bottom:3px}
+.step p{font-size:12.5px;color:var(--text-2);line-height:1.5;margin-bottom:10px}
+.code{font-family:var(--mono);font-size:11.5px;background:var(--surface-2);border:1px solid var(--border);padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-all}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:99px;background:var(--text-3);margin-right:6px}
+.status-dot.ok{background:var(--green)}.status-dot.bad{background:var(--red)}
+.dq{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.dq div{padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}
+.dq div b{display:block;font-family:var(--display);font-size:20px;font-weight:700}
+.dq div span{font-size:11.5px;color:var(--text-2)}
+.dq div.bad b{color:var(--red)}.dq div.warn b{color:var(--amber)}
+
+/* Responsive */
+@media (max-width:1366px){.g5{grid-template-columns:repeat(4,1fr)}.kpi .v{font-size:21px}}
+@media (max-width:1180px){.g5,.g4{grid-template-columns:repeat(3,1fr)}.g3{grid-template-columns:repeat(2,1fr)}.g23,.g32{grid-template-columns:1fr}:root{--sidebar:200px}.profile{grid-template-columns:1fr}.profile .fields{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:900px){#app{grid-template-columns:1fr}.sidebar{display:none}.header,.main{grid-column:1}.g5,.g4,.g3,.g2{grid-template-columns:repeat(2,1fr)}.hdr-meta{display:none}.form{grid-template-columns:1fr}.dq{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:600px){.g5,.g4,.g3,.g2{grid-template-columns:1fr}}
+@media print{.sidebar,.header,.filterbar,.ph .acts,.btn,#toast{display:none!important}#app{display:block}.main{overflow:visible;padding:0}.page{display:none}.page.active{display:block}.card{break-inside:avoid;box-shadow:none}body{overflow:visible}}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo" id="brandLogo">N</div><div><div class="t1" id="brandName">Novara Properties</div><div class="t2">Business Intelligence</div></div></div>
+    <nav class="nav" id="nav">
+      <div class="sec">Analytics</div>
+      <a data-page="dashboard" class="active"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Executive Summary</a>
+      <a data-page="teams"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3.3 2.7-6 6-6s6 2.7 6 6M15 15c2.8 0 5 1.8 5 4"/></svg>Teams</a>
+      <a data-page="developers"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5M9 10h2M13 10h2M9 14h2M13 14h2"/></svg>Developers</a>
+      <a data-page="agents"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>Agents</a>
+      <a data-page="leaderboard"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M6 3h12v6a6 6 0 0 1-12 0zM6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg>Leaderboards</a>
+      <a data-page="alerts"><svg viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"/></svg>Alert Centre<span class="badge" id="alertBadge" style="display:none"></span></a>
+      <div class="sec">People</div>
+      <a data-page="employees"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M5.5 17c.6-1.7 2-2.5 3.5-2.5s2.9.8 3.5 2.5M15 9h3M15 13h3"/></svg>Employees</a>
+      <a data-page="org"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="4" rx="1"/><rect x="3" y="17" width="6" height="4" rx="1"/><rect x="15" y="17" width="6" height="4" rx="1"/><path d="M12 7v4M6 17v-3h12v3M12 11v3"/></svg>Organisation Chart</a>
+      <div class="sec">System</div>
+      <a data-page="data"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Data</a>
+      <a data-page="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</a>
+    </nav>
+    <div class="foot" id="sideFoot">No data loaded</div>
+  </aside>
+
+  <header class="header">
+    <h1>Novara Business Intelligence</h1><span class="date" id="todayLbl"></span>
+    <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="gsearch" placeholder="Search agents, teams, developers, projects, clients, invoices…" autocomplete="off"><div class="search-results" id="gresults"></div></div>
+    <div class="hdr-meta" id="hdrMeta"></div>
+    <button class="btn sm" id="themeBtn" title="Toggle theme">◐</button>
+  </header>
+
+  <main class="main" id="main">
+    <div class="filterbar" id="filterbar">
+      <span class="lbl">Filters</span>
+      <div id="fYear"></div><div id="fQuarter"></div><div id="fMonth"></div>
+      <input type="date" class="inp" id="fFrom" title="From date"><input type="date" class="inp" id="fTo" title="To date">
+      <div id="fAgent"></div><div id="fTeam"></div><div id="fDeveloper"></div>
+      <button class="btn sm" id="resetBtn">Reset filters</button>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <section class="page active" id="page-dashboard"></section>
+    <section class="page" id="page-teams"></section>
+    <section class="page" id="page-developers"></section>
+    <section class="page" id="page-agents"></section>
+    <section class="page" id="page-leaderboard"></section>
+    <section class="page" id="page-alerts"></section>
+    <section class="page" id="page-employees"></section>
+    <section class="page" id="page-org"></section>
+    <section class="page" id="page-data"></section>
+    <section class="page" id="page-settings"></section>
+  </main>
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+<div id="toast"></div>
+<div id="loading"><div class="spin"></div><div id="loadingTxt">Processing sales data…</div><div class="pb"><i id="loadingBar"></i></div></div>
+<input type="file" id="xlsxInput" accept=".xlsx,.xlsm,.xls,.csv" hidden>
+<input type="file" id="jsonInput" accept=".json" hidden>
+<input type="file" id="imgInput" accept="image/*" hidden>
+<script>
+/* ============================================================
+   MODULE 0 — Utilities
+   ============================================================ */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const sum=(a,f=x=>x)=>a.reduce((s,x)=>s+(+f(x)||0),0);
+const uniq=a=>[...new Set(a)];
+const by=(a,f)=>{const m=new Map();for(const x of a){const k=f(x);if(!m.has(k))m.set(k,[]);m.get(k).push(x);}return m;};
+const todayISO=()=>new Date().toISOString().slice(0,10);
+const daysBetween=(a,b)=>Math.round((new Date(b)-new Date(a))/86400000);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const pct=(a,b)=>b?a/b*100:null;
+const fmtCur=(v,full=false)=>{if(v==null||isNaN(v))return'N/A';const c=S.settings.currency||'AED';const a=Math.abs(v);const sign=v<0?'-':'';if(full)return sign+c+' '+a.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});if(a>=1e9)return sign+c+' '+(a/1e9).toFixed(2)+'B';if(a>=1e6)return sign+c+' '+(a/1e6).toFixed(2)+'M';if(a>=1e3)return sign+c+' '+(a/1e3).toFixed(a>=1e5?0:1)+'K';return sign+c+' '+a.toFixed(0);};
+const fmtNum=v=>v==null||isNaN(v)?'N/A':Math.round(v).toLocaleString('en-US');
+const fmtPct=(v,d=1)=>v==null||isNaN(v)||!isFinite(v)?'N/A':v.toFixed(d)+'%';
+const fmtDate=iso=>{if(!iso)return'N/A';const d=new Date(iso);if(isNaN(d))return'N/A';const f=S.settings.dateFormat||'DD MMM YYYY';const dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0'),yy=d.getFullYear();return f==='DD/MM/YYYY'?`${dd}/${mm}/${yy}`:f==='YYYY-MM-DD'?`${yy}-${mm}-${dd}`:`${dd} ${MONTHS[d.getMonth()]} ${yy}`;};
+const monthKey=iso=>iso?iso.slice(0,7):null;
+const monthLbl=k=>{if(!k)return'';const[y,m]=k.split('-');return MONTHS[+m-1]+' '+y;};
+const qtrOf=iso=>iso?Math.floor((+iso.slice(5,7)-1)/3)+1:null;
+const yearOf=iso=>iso?+iso.slice(0,4):null;
+const initials=n=>String(n||'?').split(/[\s(]+/).filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+const debounce=(f,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>f(...a),ms);};};
+function toast(msg,type=''){const d=document.createElement('div');d.className='toast '+type;d.textContent=msg;$('#toast').appendChild(d);setTimeout(()=>d.remove(),3800);}
+function showLoading(txt,p){const l=$('#loading');l.classList.add('open');$('#loadingTxt').textContent=txt||'Processing sales data…';$('#loadingBar').style.width=(p||0)+'%';}
+function hideLoading(){$('#loading').classList.remove('open');}
+function download(name,content,type='application/json'){const b=content instanceof Blob?content:new Blob([content],{type});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000);}
+function readFile(f,as='binary'){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;as==='binary'?r.readAsArrayBuffer(f):as==='text'?r.readAsText(f):r.readAsDataURL(f);});}
+function modal(html,{cls=''}={}){const m=$('#modal');m.className='modal '+cls;m.innerHTML=html;$('#modalBg').classList.add('open');return m;}
+function closeModal(){$('#modalBg').classList.remove('open');}
+$('#modalBg').addEventListener('click',e=>{if(e.target.id==='modalBg')closeModal();});
+function confirmDlg(title,msg,okLbl='Delete'){return new Promise(res=>{modal(`<div class="mh"><h3>${esc(title)}</h3></div><div class="mb"><p style="line-height:1.5">${msg}</p></div><div class="mf"><button class="btn" id="cNo">Cancel</button><button class="btn danger" id="cYes">${esc(okLbl)}</button></div>`,{cls:'sm'});$('#cNo').onclick=()=>{closeModal();res(false)};$('#cYes').onclick=()=>{closeModal();res(true)};});}
+async function resizeImage(dataUrl,max=320){return new Promise(res=>{const im=new Image();im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.85));};im.src=dataUrl;});}
+
+/* ============================================================
+   MODULE 1 — Persistent storage (IndexedDB, localStorage fallback)
+   Stores: employees, mappings, settings, targets, github, salesCache
+   Designed so each store maps 1:1 to a future DB table.
+   ============================================================ */
+const DB={name:'novara_bi',ver:1,stores:['employees','mappings','settings','targets','github','sales'],db:null,
+  open(){return new Promise((res,rej)=>{if(!('indexedDB' in window))return res(null);const r=indexedDB.open(this.name,this.ver);r.onupgradeneeded=e=>{const d=e.target.result;this.stores.forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id'});});};r.onsuccess=e=>{this.db=e.target.result;res(this.db)};r.onerror=()=>res(null);});},
+  async getAll(store){if(!this.db)return JSON.parse(localStorage.getItem('nbi_'+store)||'[]');return new Promise(res=>{const t=this.db.transaction(store).objectStore(store).getAll();t.onsuccess=()=>res(t.result||[]);t.onerror=()=>res([]);});},
+  async put(store,obj){if(!this.db){const a=JSON.parse(localStorage.getItem('nbi_'+store)||'[]');const i=a.findIndex(x=>x.id===obj.id);i>=0?a[i]=obj:a.push(obj);localStorage.setItem('nbi_'+store,JSON.stringify(a));return;}return new Promise(res=>{const t=this.db.transaction(store,'readwrite');t.objectStore(store).put(obj);t.oncomplete=res;t.onerror=res;});},
+  async del(store,id){if(!this.db){const a=JSON.parse(localStorage.getItem('nbi_'+store)||'[]').filter(x=>x.id!==id);localStorage.setItem('nbi_'+store,JSON.stringify(a));return;}return new Promise(res=>{const t=this.db.transaction(store,'readwrite');t.objectStore(store).delete(id);t.oncomplete=res;t.onerror=res;});},
+  async clear(store){if(!this.db){localStorage.removeItem('nbi_'+store);return;}return new Promise(res=>{const t=this.db.transaction(store,'readwrite');t.objectStore(store).clear();t.oncomplete=res;t.onerror=res;});}
+};
+
+/* ============================================================
+   MODULE 2 — Excel parsing (mirror of convert.py)
+   ============================================================ */
+const FIELD_HEADERS={sno:['s.no','sno','sr no','serial'],agent:['agent name','agent','sales person','salesperson','consultant'],date:['date of closure','closure date','booking date','date','sales date','transaction date'],property:['property','project','project name'],unit:['unit no','unit','unit number'],developer:['developer','developer name'],client:['client name','client','customer','customer name'],rm:['rm','relationship manager'],source:['source','lead source'],mop:['mode of payment','payment mode'],tokenPaid:['token paid','token'],dpStatus:['dp status','down payment status'],docStatus:['doc status','document status'],propertyValue:['property value','unit value','sale value'],commPct:['commission %','commission percent'],commPayout:['commission payout','commission'],passback:['passback','pass back'],vatInc:['vat (inclusive)','vat inclusive'],vatExc:['vat (exclusive)','vat exclusive'],gross:['gross commission','gross'],toAgent:['% to agent','agent commission'],toTL:['% to team leader'],toSH:['% to sales head'],toTele:['% to telecaller'],net:['net revenue for novara','net revenue','net'],invoice:['invoice number','invoice no','invoice'],invoiceDate:['invoice date'],team:['team','team name'],year:['year'],month:['month']};
+const REQUIRED=['agent','date','developer','net','team'];
+const FALLBACK={agent:1,date:2,developer:5,net:27,team:31};
+const DEFAULT_ALIASES={'BAZEED KHAN':'BAZEED','SHOAIB':'SHUAIB','AWAIS (B2B)':'AWAIS','DANSIH':'DANISH','B2B (FURQAN)':'FURQAN','B2B (TABISH)':'TABISH','BILAL FAROOQ + LUV':'BILAL FAROOQ'};
+const colLetter=i=>{let s='';i++;while(i){i--;s=String.fromCharCode(65+i%26)+s;i=Math.floor(i/26);}return s;};
+const normH=h=>String(h??'').trim().toLowerCase().replace(/\s+/g,' ');
+const cleanText=v=>{if(v==null)return null;if(v instanceof Date)return isNaN(v)?null:v.toISOString().slice(0,10);const s=String(v).replace(/\s+/g,' ').trim();return s||null;};
+const cleanNum=v=>{if(v==null||v==='')return null;if(typeof v==='number')return isNaN(v)?null:v;let s=String(v).trim();const neg=s.startsWith('(')&&s.endsWith(')');s=s.replace(/,/g,'').replace(/[^0-9.\-]/g,'');if(!s||s==='-'||s==='.')return null;const n=parseFloat(s);return isNaN(n)?null:neg?-n:n;};
+function parseDateAny(v){if(v==null||v==='')return null;if(v instanceof Date)return isNaN(v)?null:v.toISOString().slice(0,10);if(typeof v==='number'){if(v>20000&&v<80000){const d=new Date(Date.UTC(1899,11,30)+v*86400000);return d.toISOString().slice(0,10);}return null;}const s=String(v).trim().split(/\r?\n/)[0].trim();if(!s)return null;let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);if(m){let d=+m[1],mo=+m[2],y=+m[3];if(y<100)y+=2000;if(mo>12&&d<=12)[d,mo]=[mo,d];if(mo>=1&&mo<=12&&d>=1&&d<=31)return`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;return null;}const d=new Date(s);if(isNaN(d))return null;const y=d.getFullYear();return y>=1990&&y<=2100?d.toISOString().slice(0,10):null;}
+const monthIdx=v=>{const s=cleanText(v);if(!s)return null;const i=MONTHS.findIndex(m=>m.toUpperCase()===s.toUpperCase().slice(0,3));return i<0?null:i+1;};
+
+function parseWorkbook(buf,fileName){
+  const wb=XLSX.read(buf,{type:'array',cellDates:true});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  let hr=-1;for(let i=0;i<Math.min(15,rows.length);i++){const c=rows[i].map(normH);if(c.some(x=>x.includes('net revenue'))&&c.some(x=>x.includes('agent')||x.includes('date'))){hr=i;break;}}
+  if(hr<0)throw new Error('Could not find a header row containing "Net Revenue for Novara".');
+  const headers=rows[hr].map(normH);
+  const map={};for(const[f,names]of Object.entries(FIELD_HEADERS)){for(const n of names){const i=headers.indexOf(n);if(i>=0){map[f]=i;break;}}}
+  for(const[f,i]of Object.entries(FALLBACK))if(map[f]==null&&i<headers.length)map[f]=i;
+  const missing=REQUIRED.filter(f=>map[f]==null);
+  if(missing.length)throw new Error('Excel upload missing required field(s): '+missing.join(', '));
+  const aliases=Object.assign({},DEFAULT_ALIASES,S.settings.aliases||{});
+  const canon=v=>{const s=cleanText(v);if(!s)return null;const u=s.toUpperCase();return aliases[u]||u;};
+  const get=(r,f)=>map[f]==null?null:r[map[f]];
+  const q={totalRows:0,blankRows:0,valid:0,missingDate:0,estimatedDate:0,missingAgent:0,missingDeveloper:0,missingTeam:0,invalidRevenue:0,zeroRevenue:0,duplicates:0,junkRows:0};
+  const seen=new Set();const txns=[];
+  for(const r of rows.slice(hr+1)){q.totalRows++;if(r.every(c=>c==null||String(c).trim()==='')){q.blankRows++;continue;}
+    const agent=canon(get(r,'agent'));let date=parseDateAny(get(r,'date'));let net=cleanNum(get(r,'net'));const dev=cleanText(get(r,'developer'));const team=cleanText(get(r,'team'));
+    if(agent==null&&date==null&&net==null){q.junkRows++;continue;}
+    let est=false;if(!date){const y=cleanNum(get(r,'year')),m=monthIdx(get(r,'month'));if(y&&m){date=`${Math.round(y)}-${String(m).padStart(2,'0')}-01`;est=true;q.estimatedDate++;}else q.missingDate++;}
+    if(!agent)q.missingAgent++;if(!dev)q.missingDeveloper++;if(!team)q.missingTeam++;
+    if(net==null){q.invalidRevenue++;net=0;}else if(net===0)q.zeroRevenue++;
+    const key=[agent,date,dev,cleanText(get(r,'unit')),net.toFixed(2),cleanText(get(r,'client'))].join('|');const dup=seen.has(key);if(dup)q.duplicates++;seen.add(key);
+    txns.push({id:txns.length+1,sno:cleanText(get(r,'sno')),agent:agent||'UNASSIGNED',agentRaw:cleanText(get(r,'agent')),date,dateEstimated:est,property:cleanText(get(r,'property')),unit:cleanText(get(r,'unit')),developer:(dev||'UNASSIGNED').toUpperCase(),client:cleanText(get(r,'client')),rm:cleanText(get(r,'rm')),source:(cleanText(get(r,'source'))||'').toUpperCase()||null,mop:(cleanText(get(r,'mop'))||'').toUpperCase()||null,tokenPaid:cleanNum(get(r,'tokenPaid')),dpStatus:cleanText(get(r,'dpStatus')),docStatus:cleanText(get(r,'docStatus')),propertyValue:cleanNum(get(r,'propertyValue')),commPct:cleanNum(get(r,'commPct')),commPayout:cleanNum(get(r,'commPayout')),passback:cleanNum(get(r,'passback')),vatInc:cleanNum(get(r,'vatInc')),vatExc:cleanNum(get(r,'vatExc')),gross:cleanNum(get(r,'gross')),toAgent:cleanNum(get(r,'toAgent')),toTL:cleanNum(get(r,'toTL')),toSH:cleanNum(get(r,'toSH')),toTele:cleanNum(get(r,'toTele')),net:net>=0?Math.floor(net*100+.5)/100:-Math.floor(-net*100+.5)/100,invoice:cleanText(get(r,'invoice')),invoiceDate:parseDateAny(get(r,'invoiceDate')),team:(team||'UNASSIGNED').toUpperCase(),duplicate:dup});q.valid++;}
+  const expenses={};for(const nm of wb.SheetNames.slice(1)){if(/^20\d\d$/.test(nm.trim())){const rr=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:true,defval:null});const items=[];for(const r of rr){if(r[0]&&typeof r[1]==='number'&&!String(r[0]).toLowerCase().includes('total'))items.push({category:cleanText(r[0]),amount:Math.round(r[1]*100)/100});}if(items.length)expenses[nm.trim()]=items;}}
+  const dates=txns.map(t=>t.date).filter(Boolean).sort();
+  return{meta:{app:'Novara Business Intelligence',sourceFile:fileName,sheet:wb.SheetNames[0],generatedAt:new Date().toISOString().slice(0,19),generatedBy:'index.html',columnMap:Object.fromEntries(Object.entries(map).map(([f,i])=>[f,{index:i,letter:colLetter(i),header:rows[hr][i]}])),dateRange:{from:dates[0]||null,to:dates[dates.length-1]||null},quality:q,agentAliases:aliases},transactions:txns,expenses};
+}
+
+/* ============================================================
+   MODULE 3 — Application state
+   ============================================================ */
+const S={
+  data:null,               // {meta, transactions, expenses}
+  employees:[], mappings:{}, targets:[], github:{},
+  settings:{company:'Novara Properties',logo:null,currency:'AED',dateFormat:'DD MMM YYYY',defaultYear:'',theme:'light',thAttention:30,thWarning:60,thCritical:90,aliases:{}},
+  filters:{years:[],quarters:[],months:[],from:'',to:'',agents:[],teams:[],developers:[]},
+  page:'dashboard', sel:{team:null,developer:null,agent:null,compare:[]}, ui:{trendAgg:'month',trendType:'line',topN:10,heatMode:'agent'},
+  charts:{}
+};
+const T=()=>S.data?S.data.transactions:[];
+
+/* ---------- Filtering ---------- */
+function filterTx(f=S.filters,opts={}){
+  let a=T();
+  if(!opts.ignoreTime){
+    if(f.years.length)a=a.filter(t=>t.date&&f.years.includes(yearOf(t.date)));
+    if(f.quarters.length)a=a.filter(t=>t.date&&f.quarters.includes(qtrOf(t.date)));
+    if(f.months.length)a=a.filter(t=>t.date&&f.months.includes(+t.date.slice(5,7)));
+    if(f.from)a=a.filter(t=>t.date&&t.date>=f.from);
+    if(f.to)a=a.filter(t=>t.date&&t.date<=f.to);
+  }
+  if(!opts.ignoreAgent&&f.agents.length)a=a.filter(t=>f.agents.includes(t.agent));
+  if(!opts.ignoreTeam&&f.teams.length)a=a.filter(t=>f.teams.includes(t.team));
+  if(!opts.ignoreDev&&f.developers.length)a=a.filter(t=>f.developers.includes(t.developer));
+  return a;
+}
+/* Period bounds of current filter -> {from,to,label} or null */
+function currentPeriod(){
+  const f=S.filters;const dated=T().filter(t=>t.date);
+  if(!dated.length)return null;
+  if(f.from||f.to){const from=f.from||dated.map(t=>t.date).sort()[0];const to=f.to||todayISO();return{from,to,label:'custom'};}
+  if(f.months.length&&f.years.length===1&&f.months.length===1){const y=f.years[0],m=f.months[0];return{from:`${y}-${String(m).padStart(2,'0')}-01`,to:new Date(y,m,0).toISOString().slice(0,10),label:'month'};}
+  if(f.quarters.length===1&&f.years.length===1){const y=f.years[0],q=f.quarters[0];return{from:`${y}-${String((q-1)*3+1).padStart(2,'0')}-01`,to:new Date(y,q*3,0).toISOString().slice(0,10),label:'quarter'};}
+  if(f.years.length===1&&!f.months.length&&!f.quarters.length){return{from:`${f.years[0]}-01-01`,to:`${f.years[0]}-12-31`,label:'year'};}
+  return null; // multi-select / no time filter -> trailing 12 months comparison
+}
+function comparisonSets(){
+  const cur=filterTx();const p=currentPeriod();
+  const base=filterTx(S.filters,{ignoreTime:true});
+  if(!p){const to=todayISO();const from=new Date(Date.now()-365*86400000).toISOString().slice(0,10);const pfrom=new Date(Date.now()-730*86400000).toISOString().slice(0,10);const c=base.filter(t=>t.date&&t.date>=from&&t.date<=to);const pr=base.filter(t=>t.date&&t.date>=pfrom&&t.date<from);return{cur:c,prev:pr,label:'trailing 12M vs prior 12M',curLabel:'trailing 12 months',hasTime:false};}
+  const days=daysBetween(p.from,p.to)+1;let pf,pt;
+  if(p.label==='month'){const d=new Date(p.from);d.setMonth(d.getMonth()-1);pf=d.toISOString().slice(0,10);pt=new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10);}
+  else if(p.label==='quarter'){const d=new Date(p.from);d.setMonth(d.getMonth()-3);pf=d.toISOString().slice(0,10);pt=new Date(d.getFullYear(),d.getMonth()+3,0).toISOString().slice(0,10);}
+  else if(p.label==='year'){pf=`${+p.from.slice(0,4)-1}-01-01`;pt=`${+p.from.slice(0,4)-1}-12-31`;}
+  else{pt=new Date(new Date(p.from)-86400000).toISOString().slice(0,10);pf=new Date(new Date(pt)-(days-1)*86400000).toISOString().slice(0,10);}
+  const prev=base.filter(t=>t.date&&t.date>=pf&&t.date<=pt);
+  return{cur,prev,label:`vs previous ${p.label}`,curLabel:p.label,hasTime:true};
+}
+const delta=(a,b)=>(b==null||b===0)?null:(a-b)/Math.abs(b)*100;
+function deltaHtml(d,invert=false){if(d==null||!isFinite(d))return`<span class="nt">—</span>`;const up=invert?d<0:d>0;const cls=d===0?'nt':up?'up':'dn';return`<span class="${cls}">${d>0?'↑':d<0?'↓':'→'} ${Math.abs(d).toFixed(1)}%</span>`;}
+
+/* ---------- Aggregations ---------- */
+function agg(list,keyF){const m=new Map();for(const t of list){const k=keyF(t);if(k==null)continue;let o=m.get(k);if(!o){o={key:k,net:0,n:0,agents:new Set(),teams:new Set(),devs:new Set(),last:null,first:null,pv:0};m.set(k,o);}o.net+=t.net;o.n++;o.agents.add(t.agent);o.teams.add(t.team);o.devs.add(t.developer);o.pv+=t.propertyValue||0;if(t.date){if(!o.last||t.date>o.last)o.last=t.date;if(!o.first||t.date<o.first)o.first=t.date;}}return[...m.values()].map(o=>({...o,agents:o.agents.size,teams:o.teams.size,devs:o.devs.size,avg:o.n?o.net/o.n:0}));}
+const rank=(list,keyF)=>agg(list,keyF).sort((a,b)=>b.net-a.net).map((o,i)=>({...o,rank:i+1}));
+function byMonth(list){const m=agg(list.filter(t=>t.date),t=>monthKey(t.date));return m.sort((a,b)=>a.key<b.key?-1:1);}
+function monthRange(list){const ks=list.filter(t=>t.date).map(t=>monthKey(t.date)).sort();if(!ks.length)return[];const out=[];let[y,m]=ks[0].split('-').map(Number);const end=ks[ks.length-1];let k;do{k=`${y}-${String(m).padStart(2,'0')}`;out.push(k);m++;if(m>12){m=1;y++;}}while(k<end);return out;}
+function seriesByMonth(list){const mm=new Map(byMonth(list).map(o=>[o.key,o]));return monthRange(list).map(k=>({key:k,net:mm.get(k)?.net||0,n:mm.get(k)?.n||0}));}
+function aggPeriod(list,mode){const keyF={day:t=>t.date,week:t=>{const d=new Date(t.date);const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d.toISOString().slice(0,10);},month:t=>monthKey(t.date),quarter:t=>`${yearOf(t.date)}-Q${qtrOf(t.date)}`,year:t=>String(yearOf(t.date))}[mode];return agg(list.filter(t=>t.date),keyF).sort((a,b)=>a.key<b.key?-1:1);}
+function recencyClass(days){const s=S.settings;if(days==null)return{cls:'n',lbl:'No sales',c:'r'};if(days<=s.thAttention)return{cls:'g',lbl:'Active',c:'g'};if(days<=s.thWarning)return{cls:'a',lbl:'Attention',c:'a'};if(days<=s.thCritical)return{cls:'o',lbl:'Warning',c:'a'};return{cls:'r',lbl:'Critical',c:'r'};}
+const daysSince=iso=>iso?daysBetween(iso,todayISO()):null;
+
+/* Agent performance score 0-100 */
+function agentScore(agent,scope){
+  const all=scope||filterTx(S.filters,{ignoreAgent:true});const mine=all.filter(t=>t.agent===agent);if(!mine.length)return{score:null};
+  const ranked=rank(all,t=>t.agent);const n=ranked.length;const me=ranked.find(r=>r.key===agent);
+  const revP=n>1?(1-(me.rank-1)/(n-1))*100:100;
+  const byN=[...ranked].sort((a,b)=>b.n-a.n);const rn=byN.findIndex(r=>r.key===agent);const txP=n>1?(1-rn/(n-1))*100:100;
+  const ds=daysSince(me.last);const recP=ds==null?0:clamp(100-ds/S.settings.thCritical*100,0,100);
+  const months=monthRange(mine);const active=new Set(mine.filter(t=>t.date).map(t=>monthKey(t.date))).size;const tenure=months.length;
+  const isNew=tenure<3;const consP=isNew?60:clamp(active/tenure*100,0,100);
+  const today=new Date();const cut3=new Date(today.getFullYear(),today.getMonth()-3,1).toISOString().slice(0,10);const cut6=new Date(today.getFullYear(),today.getMonth()-6,1).toISOString().slice(0,10);
+  const last3=sum(mine.filter(t=>t.date>=cut3),t=>t.net),prev3=sum(mine.filter(t=>t.date>=cut6&&t.date<cut3),t=>t.net);
+  const gr=isNew||!prev3?null:delta(last3,prev3);const growP=gr==null?60:clamp(50+gr/2,0,100);
+  const score=Math.round(revP*.30+txP*.20+recP*.20+consP*.15+growP*.15);
+  return{score,revP,txP,recP,consP,growP,isNew,gr,active,tenure};
+}
+
+/* ============================================================
+   MODULE 4 — Charts (ECharts wrappers)
+   ============================================================ */
+const PAL=['#0B1F3A','#2F6FED','#7BA6FF','#5FA88A','#C9A24B','#8A94A6','#B45309','#6B5CE7','#3AA0A0','#D96C6C'];
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function chart(id,opt,{onClick}={}){const el=typeof id==='string'?document.getElementById(id):id;if(!el)return;let c=S.charts[el.id];if(!c||c.isDisposed()){c=echarts.init(el,null,{renderer:'canvas'});S.charts[el.id]=c;}
+  const base={color:PAL,textStyle:{fontFamily:'Inter',color:cssv('--text-2')},tooltip:{backgroundColor:cssv('--surface'),borderColor:cssv('--border'),textStyle:{color:cssv('--text'),fontSize:12},confine:true},grid:{left:12,right:16,top:28,bottom:8,containLabel:true},animationDuration:400};
+  const merged=Object.assign({},base,opt);if(opt.grid)merged.grid=Object.assign({},base.grid,opt.grid);if(opt.tooltip)merged.tooltip=Object.assign({},base.tooltip,opt.tooltip);
+  c.clear();c.setOption(merged,true);c.off('click');if(onClick)c.on('click',onClick);return c;}
+const axisStyle=()=>({axisLine:{lineStyle:{color:cssv('--border')}},axisTick:{show:false},axisLabel:{color:cssv('--text-3'),fontSize:11},splitLine:{lineStyle:{color:cssv('--border')}}});
+const moneyAxis=()=>Object.assign(axisStyle(),{axisLabel:{color:cssv('--text-3'),fontSize:11,formatter:v=>fmtCur(v).replace(S.settings.currency+' ','')}});
+function emptyEl(id,msg){const el=document.getElementById(id);if(!el)return;if(S.charts[id]){S.charts[id].dispose();delete S.charts[id];}el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 14l4-4 4 4 5-6"/></svg>${esc(msg||'No sales data available for the selected filters.')}</div>`;}
+function hbar(id,rows,{label=r=>r.key,value=r=>r.net,onClick,fmt=fmtCur,extra}={}){if(!rows.length)return emptyEl(id);const r=[...rows].reverse();chart(id,{grid:{left:8,right:60,top:8,bottom:8,containLabel:true},tooltip:{trigger:'item',formatter:p=>{const o=r[p.dataIndex];return`<b>${esc(label(o))}</b><br>${fmt(value(o),true)}${extra?'<br>'+extra(o):''}`}},xAxis:{type:'value',...moneyAxis(),splitLine:{show:false},axisLabel:{show:false}},yAxis:{type:'category',data:r.map(label),...axisStyle(),axisLabel:{color:cssv('--text'),fontSize:11.5,width:130,overflow:'truncate'}},series:[{type:'bar',data:r.map(value),barMaxWidth:18,itemStyle:{color:cssv('--accent'),borderRadius:[0,4,4,0]},label:{show:true,position:'right',formatter:p=>fmt(p.value),color:cssv('--text-2'),fontSize:10.5}}]},{onClick:onClick?p=>onClick(r[p.dataIndex]):null});}
+function donut(id,rows,{label=r=>r.key,value=r=>r.net,onClick}={}){if(!rows.length)return emptyEl(id);const tot=sum(rows,value);chart(id,{tooltip:{trigger:'item',formatter:p=>`<b>${esc(p.name)}</b><br>${fmtCur(p.value,true)} · ${fmtPct(p.percent)}`},legend:{type:'scroll',orient:'vertical',right:0,top:'middle',textStyle:{color:cssv('--text-2'),fontSize:11},itemWidth:10,itemHeight:10},series:[{type:'pie',radius:['55%','82%'],center:['35%','50%'],data:rows.map(r=>({name:label(r),value:Math.max(0,value(r))})),label:{show:false},itemStyle:{borderColor:cssv('--surface'),borderWidth:2}}],graphic:{type:'text',left:'35%',top:'middle',style:{text:fmtCur(tot),textAlign:'center',fill:cssv('--text'),fontSize:15,fontWeight:700,fontFamily:'Inter Tight'},z:10,left:'calc(35% - 30px)'}},{onClick:onClick?p=>onClick(rows[p.dataIndex]):null});}
+function lineBars(id,cats,series,{type='line',stacked=false,money=true,onClick,extraTip}={}){if(!cats.length)return emptyEl(id);chart(id,{tooltip:{trigger:'axis',formatter:ps=>{let h=`<b>${esc(ps[0].axisValue)}</b>`;ps.forEach(p=>h+=`<br>${p.marker}${esc(p.seriesName)}: ${money&&p.seriesIndex===0||p.seriesName.includes('Revenue')?fmtCur(p.value,true):fmtNum(p.value)}`);if(extraTip)h+=extraTip(ps[0].dataIndex);return h;}},legend:series.length>1?{top:0,textStyle:{color:cssv('--text-2'),fontSize:11}}:undefined,xAxis:{type:'category',data:cats,...axisStyle(),boundaryGap:type!=='line'},yAxis:series.some(s=>s.yAxisIndex===1)?[{type:'value',...moneyAxis()},{type:'value',...axisStyle(),splitLine:{show:false}}]:[{type:'value',...(money?moneyAxis():axisStyle())}],series:series.map((s,i)=>({name:s.name,type:s.type||(type==='column'?'bar':'line'),data:s.data,yAxisIndex:s.yAxisIndex||0,smooth:type!=='column'&&.35,symbol:'circle',symbolSize:5,showSymbol:cats.length<40,stack:stacked?'a':undefined,areaStyle:type==='area'?{opacity:.12}:undefined,lineStyle:{width:2.2},barMaxWidth:28,itemStyle:{borderRadius:type==='column'?[3,3,0,0]:0,color:s.color||PAL[i===0?1:i]}}))},{onClick:onClick?p=>onClick(cats[p.dataIndex],p):null});}
+function heatmap(id,rowsLbl,colsLbl,cells){if(!rowsLbl.length||!colsLbl.length)return emptyEl(id);const max=Math.max(1,...cells.map(c=>c[2]));const el=document.getElementById(id);el.style.height=Math.max(220,rowsLbl.length*22+70)+'px';chart(id,{grid:{left:8,right:8,top:8,bottom:40,containLabel:true},tooltip:{formatter:p=>`<b>${esc(rowsLbl[p.value[1]])}</b> · ${esc(colsLbl[p.value[0]])}<br>${fmtCur(p.value[2],true)}`},xAxis:{type:'category',data:colsLbl,...axisStyle(),splitArea:{show:false}},yAxis:{type:'category',data:rowsLbl,...axisStyle(),axisLabel:{color:cssv('--text'),fontSize:11,width:120,overflow:'truncate'}},visualMap:{min:0,max,calculable:false,orient:'horizontal',left:'center',bottom:0,itemHeight:120,textStyle:{color:cssv('--text-3'),fontSize:10},inRange:{color:[cssv('--surface-2'),'#C7DBFF','#2F6FED','#0B1F3A']},formatter:v=>fmtCur(v)},series:[{type:'heatmap',data:cells,itemStyle:{borderColor:cssv('--surface'),borderWidth:1.5,borderRadius:3},emphasis:{itemStyle:{shadowBlur:6,shadowColor:'rgba(0,0,0,.25)'}}}]});}
+function tableHtml(cols,rows,{rowAttr}={}){return`<div class="tbl-wrap"><table class="tbl"><thead><tr>${cols.map(c=>`<th class="${c.r?'r':''}">${c.h}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr ${rowAttr?rowAttr(r):''}>${cols.map(c=>`<td class="${c.r?'r':''}">${c.f(r)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${cols.length}"><div class="empty">No records for the current selection.</div></td></tr>`}</tbody></table></div>`;}
+function kpi(label,value,{delta:d,sub,tip,small,invert,full}={}){return`<div class="card kpi"><div class="l">${esc(label)}${tip?` <span class="info" data-tip="${esc(tip)}">i</span>`:''}</div><div class="v ${small?'sm':''}" title="${esc(full||'')}">${esc(value)}</div>${d!==undefined?`<div class="d">${deltaHtml(d,invert)} <span>${esc(sub||'')}</span></div>`:sub?`<div class="sub">${esc(sub)}</div>`:''}</div>`;}
+function exportRows(name,cols,rows){const data=rows.map(r=>Object.fromEntries(cols.map(c=>[c.h,c.raw?c.raw(r):String(c.f(r)).replace(/<[^>]+>/g,'')])));return data;}
+function toCSV(name,data){if(!data.length)return toast('Nothing to export');const ks=Object.keys(data[0]);const csv=[ks.join(','),...data.map(r=>ks.map(k=>`"${String(r[k]??'').replace(/"/g,'""')}"`).join(','))].join('\n');download(name+'.csv',csv,'text/csv');}
+function toXLSX(name,data,sheet='Data'){if(!data.length)return toast('Nothing to export');const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data),sheet);XLSX.writeFile(wb,name+'.xlsx');}
+function resizeCharts(){Object.values(S.charts).forEach(c=>{try{c.resize()}catch(e){}});}
+window.addEventListener('resize',debounce(resizeCharts,150));
+
+/* ============================================================
+   MODULE 5 — Global filters UI
+   ============================================================ */
+function multiSelect(host,{label,options,selected,onChange,counts}){
+  host.innerHTML='';const wrap=document.createElement('div');wrap.className='ms';
+  const btn=document.createElement('button');btn.className='ms-btn';const pop=document.createElement('div');pop.className='ms-pop';
+  const render=()=>{const n=selected.length;btn.innerHTML=`<span class="v ${n?'has':''}">${n?esc(n===1?selected[0]:label):esc(label)}</span>${n>1?`<span class="cnt">${n}</span>`:''}<svg class="car" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>`;};
+  const list=document.createElement('div');list.className='ms-list';const inp=document.createElement('input');inp.placeholder='Search…';
+  const draw=()=>{const q=inp.value.toLowerCase();list.innerHTML=options.filter(o=>String(o).toLowerCase().includes(q)).map(o=>`<label><input type="checkbox" value="${esc(o)}" ${selected.includes(o)?'checked':''}> ${esc(o)}${counts?`<small>${counts(o)}</small>`:''}</label>`).join('')||'<div class="hint" style="padding:8px">No matches</div>';$$('input[type=checkbox]',list).forEach(cb=>cb.onchange=()=>{const v=isNaN(cb.value)||typeof options[0]==='string'?cb.value:+cb.value;if(cb.checked)selected.push(v);else selected.splice(selected.indexOf(v),1);render();onChange([...selected]);});};
+  inp.oninput=draw;const foot=document.createElement('div');foot.className='ms-foot';foot.innerHTML=`<button data-a="all">Select all</button><button data-a="clr">Clear</button>`;
+  foot.onclick=e=>{const a=e.target.dataset.a;if(!a)return;selected.length=0;if(a==='all')selected.push(...options);draw();render();onChange([...selected]);};
+  pop.append(inp,list,foot);wrap.append(btn,pop);host.appendChild(wrap);render();
+  btn.onclick=e=>{e.stopPropagation();const open=wrap.classList.contains('open');$$('.ms.open').forEach(x=>x.classList.remove('open'));if(!open){wrap.classList.add('open');draw();inp.focus();}};
+  pop.onclick=e=>e.stopPropagation();
+}
+document.addEventListener('click',()=>{$$('.ms.open').forEach(x=>x.classList.remove('open'));$('#gresults').classList.remove('open');});
+
+function buildFilters(){
+  const f=S.filters;const all=T();
+  const years=uniq(all.map(t=>yearOf(t.date)).filter(Boolean)).sort();
+  const scoped=filterTx(f,{ignoreAgent:true});
+  const agents=uniq(scoped.map(t=>t.agent)).sort();
+  const teams=uniq(filterTx(f,{ignoreTeam:true}).map(t=>t.team)).sort();
+  const devs=uniq(filterTx(f,{ignoreDev:true}).map(t=>t.developer)).sort();
+  const on=()=>{buildFilters();renderPage();};
+  multiSelect($('#fYear'),{label:'Year',options:years,selected:f.years,onChange:on});
+  multiSelect($('#fQuarter'),{label:'Quarter',options:[1,2,3,4],selected:f.quarters,onChange:on});
+  multiSelect($('#fMonth'),{label:'Month',options:[1,2,3,4,5,6,7,8,9,10,11,12],selected:f.months,onChange:on});
+  $$('#fMonth .ms-list label, #fQuarter .ms-list label');
+  multiSelect($('#fAgent'),{label:'Agent',options:agents,selected:f.agents,onChange:on});
+  multiSelect($('#fTeam'),{label:'Team',options:teams,selected:f.teams,onChange:on});
+  multiSelect($('#fDeveloper'),{label:'Developer',options:devs,selected:f.developers,onChange:on});
+  $('#fFrom').value=f.from;$('#fTo').value=f.to;
+  // chips
+  const chips=[];const add=(k,lbl,vals,fmtV=v=>v)=>vals.forEach(v=>chips.push(`<span class="chip"><b>${lbl}:</b> ${esc(fmtV(v))}<button data-k="${k}" data-v="${esc(v)}">×</button></span>`));
+  add('years','Year',f.years);add('quarters','Quarter',f.quarters,v=>'Q'+v);add('months','Month',f.months,v=>MONTHS[v-1]);
+  if(f.from)chips.push(`<span class="chip"><b>From:</b> ${fmtDate(f.from)}<button data-k="from">×</button></span>`);if(f.to)chips.push(`<span class="chip"><b>To:</b> ${fmtDate(f.to)}<button data-k="to">×</button></span>`);
+  add('agents','Agent',f.agents);add('teams','Team',f.teams);add('developers','Developer',f.developers);
+  $('#chips').innerHTML=chips.join('');
+}
+$('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const k=b.dataset.k,f=S.filters;if(k==='from'||k==='to')f[k]='';else{const v=b.dataset.v;f[k]=f[k].filter(x=>String(x)!==v);}buildFilters();renderPage();});
+$('#fFrom').onchange=e=>{S.filters.from=e.target.value;buildFilters();renderPage();};
+$('#fTo').onchange=e=>{S.filters.to=e.target.value;buildFilters();renderPage();};
+function resetFilters(){S.filters={years:[],quarters:[],months:[],from:'',to:'',agents:[],teams:[],developers:[]};if(S.settings.defaultYear&&T().some(t=>yearOf(t.date)===+S.settings.defaultYear))S.filters.years=[+S.settings.defaultYear];S.sel={team:null,developer:null,agent:null,compare:S.sel.compare};buildFilters();renderPage();}
+$('#resetBtn').onclick=resetFilters;
+function goto(page,sel){S.page=page;if(sel)Object.assign(S.sel,sel);$$('#nav a').forEach(a=>a.classList.toggle('active',a.dataset.page===page));$$('.page').forEach(p=>p.classList.toggle('active',p.id==='page-'+page));$('#main').scrollTop=0;renderPage();}
+$('#nav').onclick=e=>{const a=e.target.closest('a');if(a)goto(a.dataset.page);};
+
+/* ============================================================
+   MODULE 6 — Insights & alerts engine
+   ============================================================ */
+function insights(list){
+  const out=[];if(!list.length)return out;const tot=sum(list,t=>t.net);
+  const ag=rank(list,t=>t.agent);const top5=sum(ag.slice(0,5),r=>r.net);if(ag.length>5)out.push({c:'',t:`Top 5 agents generated <b>${fmtPct(pct(top5,tot))}</b> of company revenue in the selected period.`});
+  const dv=rank(list,t=>t.developer);if(dv.length){const d=dv[0];const sh=pct(d.net,tot);out.push({c:sh>40?'warn':'',t:`<b>${esc(d.key)}</b> is the top developer with ${fmtCur(d.net)} (${fmtPct(sh)} of revenue)${sh>40?' — concentration risk':''}.`});}
+  const ms=byMonth(list);if(ms.length>=2){const cm=todayISO().slice(0,7);const partial=ms[ms.length-1].key===cm;const a=partial&&ms.length>=3?ms[ms.length-2]:ms[ms.length-1],b=partial&&ms.length>=3?ms[ms.length-3]:ms[ms.length-2];const d=delta(a.net,b.net);if(d!=null)out.push({c:d>=0?'pos':'neg',t:`Revenue ${d>=0?'grew':'fell'} <b>${fmtPct(Math.abs(d))}</b> month-on-month (${monthLbl(b.key)} → ${monthLbl(a.key)})${partial?` · ${monthLbl(cm)} is in progress: ${fmtCur(ms[ms.length-1].net)} so far`:''}.`});const best=[...ms].sort((x,y)=>y.net-x.net)[0];out.push({c:'pos',t:`<b>${monthLbl(best.key)}</b> was the strongest month with ${fmtCur(best.net)} from ${best.n} closures.`});}
+  const tm=rank(list,t=>t.team);if(tm.length>1)out.push({c:'',t:`Team <b>${esc(tm[0].key)}</b> leads with ${fmtCur(tm[0].net)}; ${tm.length} teams contributed.`});
+  const {cur,prev}=comparisonSets();const tq=rank(cur,t=>t.team),pq=rank(prev,t=>t.team);let bestG=null;tq.forEach(r=>{const p=pq.find(x=>x.key===r.key);if(p&&p.net>50000){const d=delta(r.net,p.net);if(d!=null&&(!bestG||d>bestG.d))bestG={k:r.key,d};}});if(bestG)out.push({c:bestG.d>=0?'pos':'neg',t:`Team <b>${esc(bestG.k)}</b> ${bestG.d>=0?'increased':'decreased'} revenue by ${fmtPct(Math.abs(bestG.d))} versus the prior period.`});
+  const dormant=ag.filter(r=>daysSince(r.last)>S.settings.thWarning);if(dormant.length)out.push({c:'warn',t:`<b>${dormant.length}</b> agent${dormant.length>1?'s have':' has'} not closed a transaction in the last ${S.settings.thWarning} days.`});
+  const zero=list.filter(t=>t.net===0).length;if(zero)out.push({c:'',t:`${zero} closures carry zero net revenue (pass-through / B2B deals) — excluded from averages by value, included in counts.`});
+  return out;
+}
+function alerts(){
+  const A=[];const all=filterTx();if(!all.length)return A;const tot=sum(all,t=>t.net);const today=todayISO();
+  rank(T(),t=>t.agent).forEach(r=>{const d=daysSince(r.last);const em=empForAgent(r.key);if(em&&/Resigned|Terminated/.test(em.status||''))return;if(!em&&d>365)return;if(d!=null&&d>S.settings.thCritical&&r.key!=='UNASSIGNED')A.push({k:'CRITICAL',t:`Agent <b>${esc(r.key)}</b> has gone ${d} days without a transaction.`,s:`Last sale ${fmtDate(r.last)} · lifetime ${fmtCur(r.net)}`,go:()=>goto('agents',{agent:r.key})});});
+  const ms=byMonth(T());if(ms.length>=3){const cm=todayISO().slice(0,7);const off=ms[ms.length-1].key===cm?1:0;const a=ms[ms.length-1-off],b=ms[ms.length-2-off];const d=delta(a.net,b.net);if(d!=null&&d<-15)A.push({k:'WARNING',t:`Company monthly revenue fell ${fmtPct(Math.abs(d))} in the last complete month.`,s:`${monthLbl(b.key)} ${fmtCur(b.net)} → ${monthLbl(a.key)} ${fmtCur(a.net)}`});const q=aggPeriod(T(),'quarter');if(q.length>=3){const cq=`${new Date().getFullYear()}-Q${qtrOf(todayISO())}`;const o=q[q.length-1].key===cq?1:0;const x=q[q.length-1-o],y=q[q.length-2-o];const dq=delta(x.net,y.net);if(dq!=null&&dq<-15)A.push({k:'WARNING',t:`Quarter-on-quarter revenue declined ${fmtPct(Math.abs(dq))} (${y.key} → ${x.key}).`});}}
+  const dv=rank(all,t=>t.developer);if(dv.length){const sh=pct(dv[0].net,tot);if(sh>35)A.push({k:'CONCENTRATION',t:`Developer <b>${esc(dv[0].key)}</b> represents ${fmtPct(sh)} of company revenue.`,s:'Diversify developer mix to reduce dependency risk',go:()=>goto('developers',{developer:dv[0].key})});}
+  const ag=rank(all,t=>t.agent);if(ag.length>3){const sh=pct(sum(ag.slice(0,3),r=>r.net),tot);if(sh>50)A.push({k:'CONCENTRATION',t:`Top 3 agents generate ${fmtPct(sh)} of revenue.`,s:'Key-person risk — build bench strength'});}
+  const {cur,prev}=comparisonSets();const dq=rank(cur,t=>t.developer),pq=rank(prev,t=>t.developer);dq.forEach(r=>{const p=pq.find(x=>x.key===r.key);if(p&&p.net>100000){const d=delta(r.net,p.net);if(d>40)A.push({k:'OPPORTUNITY',t:`Developer <b>${esc(r.key)}</b> revenue increased ${fmtPct(d)} versus the prior period.`,s:`${fmtCur(p.net)} → ${fmtCur(r.net)}`,go:()=>goto('developers',{developer:r.key})});else if(d<-40)A.push({k:'WARNING',t:`Developer <b>${esc(r.key)}</b> revenue dropped ${fmtPct(Math.abs(d))} versus the prior period.`,s:`${fmtCur(p.net)} → ${fmtCur(r.net)}`});}});
+  rank(T(),t=>t.team).forEach(tm=>{const m=byMonth(T().filter(t=>t.team===tm.key));if(m.length>=6){const last=m[m.length-1];const best=[...m].sort((a,b)=>b.net-a.net)[0];if(last.key===best.key&&last.net>0)A.push({k:'POSITIVE',t:`Team <b>${esc(tm.key)}</b> achieved its strongest month on record (${monthLbl(last.key)}, ${fmtCur(last.net)}).`,go:()=>goto('teams',{team:tm.key})});}});
+  const ord={CRITICAL:0,WARNING:1,CONCENTRATION:2,OPPORTUNITY:3,POSITIVE:4};return A.sort((a,b)=>ord[a.k]-ord[b.k]);
+}
+
+/* ============================================================
+   MODULE 7 — Executive Summary
+   ============================================================ */
+function renderDashboard(){
+  const el=$('#page-dashboard');const list=filterTx();
+  if(!T().length)return el.innerHTML=welcomeHtml();
+  const cmp=comparisonSets();const tot=sum(list,t=>t.net),n=list.length;
+  const ag=rank(list,t=>t.agent),tm=rank(list,t=>t.team),dv=rank(list,t=>t.developer),ms=byMonth(list);
+  const ptot=sum(cmp.prev,t=>t.net),pn=cmp.prev.length,pag=uniq(cmp.prev.map(t=>t.agent)).length;
+  const ctot=sum(cmp.cur,t=>t.net);const useCmp=cmp.hasTime;
+  const active=ag.filter(r=>r.key!=='UNASSIGNED').length;const best=[...ms].sort((a,b)=>b.net-a.net)[0];
+  const last=list.filter(t=>t.date).map(t=>t.date).sort().slice(-1)[0];
+  const dsub=cmp.label;
+  const pv=sum(list,t=>t.propertyValue);
+  el.innerHTML=`
+  <div class="ph"><div><h2>Executive Summary</h2><p>${n} closures · ${fmtDate(S.data.meta.dateRange.from)} → ${fmtDate(S.data.meta.dateRange.to)}${useCmp?'':' · comparisons use trailing 12 months vs prior 12 months'}</p></div><div class="acts"><button class="btn sm" onclick="printSummary()">Print / PDF summary</button><button class="btn sm" onclick="exportTx()">Export transactions</button></div></div>
+  <div class="grid g5" id="kpis">
+    ${kpi('Total Net Revenue',fmtCur(useCmp?tot:tot),{delta:delta(useCmp?tot:ctot,ptot),sub:dsub,full:fmtCur(tot,true),tip:'Sum of "Net Revenue for Novara" for all filtered closures.'})}
+    ${kpi('Total Transactions',fmtNum(n),{delta:delta(useCmp?n:cmp.cur.length,pn),sub:dsub})}
+    ${kpi('Avg Revenue / Transaction',fmtCur(n?tot/n:null),{delta:delta(n?tot/n:0,pn?ptot/pn:null),sub:dsub,full:fmtCur(n?tot/n:null,true),tip:'Total Net Revenue ÷ transactions (zero-revenue closures included).'})}
+    ${kpi('Active Agents',fmtNum(active),{delta:delta(useCmp?active:uniq(cmp.cur.map(t=>t.agent)).length,pag),sub:dsub,tip:'Agents with at least one closure in the filtered period.'})}
+    ${kpi('Revenue / Agent',fmtCur(active?tot/active:null),{delta:delta(active?tot/active:0,pag?ptot/pag:null),sub:dsub,full:fmtCur(active?tot/active:null,true)})}
+    ${kpi('Top Agent',ag[0]?.key||'N/A',{sub:ag[0]?fmtCur(ag[0].net)+' · '+fmtPct(pct(ag[0].net,tot)):'',small:true})}
+    ${kpi('Top Team',tm[0]?.key||'N/A',{sub:tm[0]?fmtCur(tm[0].net)+' · '+fmtPct(pct(tm[0].net,tot)):'',small:true})}
+    ${kpi('Top Developer',dv[0]?.key||'N/A',{sub:dv[0]?fmtCur(dv[0].net)+' · '+fmtPct(pct(dv[0].net,tot)):'',small:true})}
+    ${kpi('Best Month',best?monthLbl(best.key):'N/A',{sub:best?fmtCur(best.net)+' · '+best.n+' closures':'',small:true})}
+    ${kpi('Last Transaction',fmtDate(last),{sub:last?daysSince(last)+' days ago':'',small:true})}
+  </div>
+  <div class="grid g4 mt">
+    ${kpi('Property Value Sold',fmtCur(pv),{sub:'gross transaction value',full:fmtCur(pv,true)})}
+    ${kpi('Blended Net Take Rate',fmtPct(pct(tot,pv),2),{sub:'net revenue ÷ property value',tip:'What Novara nets per dirham of property sold after agent/TL/SH splits and VAT.'})}
+    ${kpi('Rolling 3M Revenue',fmtCur(rolling(3)),{sub:'last 3 calendar months',full:fmtCur(rolling(3),true)})}
+    ${kpi('Annual Run Rate',fmtCur(rolling(3)*4),{sub:'rolling 3M × 4',full:fmtCur(rolling(3)*4,true),tip:'Annualised revenue pace based on the last 3 months.'})}
+  </div>
+  <div class="grid g23 mt">
+    <div class="card"><div class="ch"><div><h3>Revenue Trend</h3><p>Net revenue over time · click a point to drill into that period</p></div><div class="toolbar"><div class="seg" id="aggSeg">${['day','week','month','quarter','year'].map(a=>`<button data-a="${a}" class="${S.ui.trendAgg===a?'on':''}">${a[0].toUpperCase()+a.slice(1)}</button>`).join('')}</div><div class="seg" id="typeSeg">${['line','area','column'].map(a=>`<button data-a="${a}" class="${S.ui.trendType===a?'on':''}">${a[0].toUpperCase()+a.slice(1)}</button>`).join('')}</div></div></div><div class="cb"><div id="cTrend" class="chart tall"></div></div></div>
+    <div class="card"><div class="ch"><div><h3>Management Insights</h3><p>Generated from the filtered data</p></div></div><div class="cb"><div class="ins" id="insBox"></div><div class="mt" id="alertMini"></div></div></div>
+  </div>
+  <div class="grid g2 mt">
+    <div class="card"><div class="ch"><div><h3>Cumulative Revenue</h3><p>Revenue trajectory through the selected period</p></div></div><div class="cb"><div id="cCum" class="chart"></div></div></div>
+    <div class="card"><div class="ch"><div><h3>Revenue vs Transaction Count</h3><p>Are we closing more deals, or bigger deals?</p></div></div><div class="cb"><div id="cRevTx" class="chart"></div></div></div>
+  </div>
+  <div class="grid g2 mt">
+    <div class="card"><div class="ch"><div><h3>Top Agents by Net Revenue</h3><p>Click an agent to open their profile</p></div><div class="seg" id="topSeg">${[5,10,20,999].map(v=>`<button data-a="${v}" class="${S.ui.topN===v?'on':''}">${v===999?'All':'Top '+v}</button>`).join('')}</div></div><div class="cb"><div id="cAgents" class="chart tall"></div></div></div>
+    <div class="card"><div class="ch"><div><h3>Team Performance</h3><p>Revenue, closures and productivity per team</p></div></div><div class="cb"><div id="cTeams" class="chart"></div><div id="cTeamDonut" class="chart short"></div></div></div>
+  </div>
+  <div class="grid g2 mt">
+    <div class="card"><div class="ch"><div><h3>Top Developers by Net Revenue</h3><p>Click to open Developer analytics</p></div></div><div class="cb"><div id="cDevs" class="chart tall"></div></div></div>
+    <div><div class="card"><div class="ch"><div><h3>Revenue by Quarter</h3><p>Quarter-on-quarter view</p></div></div><div class="cb"><div id="cQtr" class="chart short"></div></div></div>
+    <div class="card mt"><div class="ch"><div><h3>Revenue by Lead Source</h3><p>Where closed business originates</p></div></div><div class="cb"><div id="cSource" class="chart short"></div></div></div></div>
+  </div>
+  <div class="card mt"><div class="ch"><div><h3>Monthly Performance Heatmap</h3><p>Consistency, spikes and inactive months</p></div><div class="seg" id="heatSeg"><button data-a="agent" class="${S.ui.heatMode==='agent'?'on':''}">Agent</button><button data-a="team" class="${S.ui.heatMode==='team'?'on':''}">Team</button></div></div><div class="cb"><div id="cHeat" class="chart"></div></div></div>
+  <div class="card mt"><div class="ch"><div><h3>Agent Leaderboard</h3><p>Ranked by net revenue in the filtered period</p></div><div class="toolbar"><button class="btn sm" onclick="goto('leaderboard')">Full leaderboards →</button></div></div><div class="cb flush" id="lbMini"></div></div>`;
+  // trend
+  const drawTrend=()=>{const rows=aggPeriod(list,S.ui.trendAgg);const cats=rows.map(r=>S.ui.trendAgg==='month'?monthLbl(r.key):S.ui.trendAgg==='day'||S.ui.trendAgg==='week'?fmtDate(r.key):r.key);lineBars('cTrend',cats,[{name:'Net Revenue',data:rows.map(r=>Math.round(r.net))}],{type:S.ui.trendType,extraTip:i=>`<br>Transactions: ${rows[i].n}<br>Avg: ${fmtCur(rows[i].avg,true)}`,onClick:(c,p)=>{const r=rows[p.dataIndex];if(S.ui.trendAgg==='month'){S.filters.years=[+r.key.slice(0,4)];S.filters.months=[+r.key.slice(5,7)];S.filters.quarters=[];}else if(S.ui.trendAgg==='year'){S.filters.years=[+r.key];S.filters.months=[];S.filters.quarters=[];}else if(S.ui.trendAgg==='quarter'){S.filters.years=[+r.key.slice(0,4)];S.filters.quarters=[+r.key.slice(-1)];S.filters.months=[];}else return;buildFilters();renderPage();}});};
+  drawTrend();
+  $('#aggSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;S.ui.trendAgg=b.dataset.a;$$('#aggSeg button').forEach(x=>x.classList.toggle('on',x===b));drawTrend();};
+  $('#typeSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;S.ui.trendType=b.dataset.a;$$('#typeSeg button').forEach(x=>x.classList.toggle('on',x===b));drawTrend();};
+  // insights
+  const ins=insights(list);$('#insBox').innerHTML=ins.length?ins.map(i=>`<div class="i ${i.c}"><span class="dot"></span><div>${i.t}</div></div>`).join(''):'<div class="empty">No sales data available for the selected filters.</div>';
+  const al=alerts().slice(0,3);$('#alertMini').innerHTML=al.length?`<div class="hint" style="margin:8px 0 6px;font-weight:600;color:var(--text-2)">TOP ALERTS</div>`+al.map(a=>`<div class="alert ${a.k}" style="margin-bottom:6px;padding:8px 10px"><span class="k">${a.k}</span><p>${a.t}</p></div>`).join('')+`<button class="btn sm ghost" onclick="goto('alerts')">View all alerts →</button>`:'';
+  // cumulative
+  const sm=seriesByMonth(list);let c=0;lineBars('cCum',sm.map(r=>monthLbl(r.key)),[{name:'Cumulative Revenue',data:sm.map(r=>Math.round(c+=r.net))}],{type:'area'});
+  lineBars('cRevTx',sm.map(r=>monthLbl(r.key)),[{name:'Net Revenue',data:sm.map(r=>Math.round(r.net)),type:'bar'},{name:'Transactions',data:sm.map(r=>r.n),type:'line',yAxisIndex:1,color:PAL[4]}],{type:'column'});
+  // agents
+  const drawAgents=()=>{const rows=ag.filter(r=>r.key!=='UNASSIGNED').slice(0,S.ui.topN);$('#cAgents').style.height=Math.max(300,rows.length*26+40)+'px';hbar('cAgents',rows,{extra:o=>`${o.n} closures · avg ${fmtCur(o.avg)} · ${fmtPct(pct(o.net,tot))} of revenue · #${o.rank}`,onClick:o=>goto('agents',{agent:o.key})});};drawAgents();
+  $('#topSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;S.ui.topN=+b.dataset.a;$$('#topSeg button').forEach(x=>x.classList.toggle('on',x===b));drawAgents();};
+  // teams
+  hbar('cTeams',tm,{extra:o=>`${o.n} closures · ${o.agents} agents · ${fmtCur(o.agents?o.net/o.agents:0)} per agent · ${fmtPct(pct(o.net,tot))} of revenue`,onClick:o=>goto('teams',{team:o.key})});
+  donut('cTeamDonut',tm,{onClick:o=>goto('teams',{team:o.key})});
+  // developers
+  const dvRows=dv.slice(0,20);$('#cDevs').style.height=Math.max(300,dvRows.length*26+40)+'px';hbar('cDevs',dvRows,{extra:o=>`${o.n} closures · avg ${fmtCur(o.avg)} · ${fmtPct(pct(o.net,tot))} · #${o.rank}`,onClick:o=>goto('developers',{developer:o.key})});
+  const q=aggPeriod(list,'quarter');lineBars('cQtr',q.map(r=>r.key),[{name:'Net Revenue',data:q.map(r=>Math.round(r.net))}],{type:'column',onClick:(c,p)=>{const r=q[p.dataIndex];S.filters.years=[+r.key.slice(0,4)];S.filters.quarters=[+r.key.slice(-1)];S.filters.months=[];buildFilters();renderPage();}});
+  const src=rank(list,t=>normSource(t.source)).slice(0,8);donut('cSource',src);
+  // heatmap
+  const drawHeat=()=>{const mode=S.ui.heatMode;const rows=(mode==='agent'?ag.filter(r=>r.key!=='UNASSIGNED').slice(0,25):tm).map(r=>r.key);const months=monthRange(list);const m=new Map();list.filter(t=>t.date).forEach(t=>{const k=(mode==='agent'?t.agent:t.team)+'|'+monthKey(t.date);m.set(k,(m.get(k)||0)+t.net);});const cells=[];rows.forEach((r,ri)=>months.forEach((mo,mi)=>cells.push([mi,ri,Math.round(m.get(r+'|'+mo)||0)])));heatmap('cHeat',rows,months.map(monthLbl),cells);};drawHeat();
+  $('#heatSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;S.ui.heatMode=b.dataset.a;$$('#heatSeg button').forEach(x=>x.classList.toggle('on',x===b));drawHeat();};
+  // leaderboard mini
+  $('#lbMini').innerHTML=leaderboardTable(ag.slice(0,10),list,tot);
+}
+function normSource(s){if(!s)return'UNKNOWN';s=s.toUpperCase();if(s.includes('BAYUT')||s.includes('DUBIZZLE'))return'BAYUT / DUBIZZLE';if(s.includes('REFER'))return'REFERRAL';if(s.includes('COLD'))return'COLD CALLING';if(s.includes('EVENT'))return'EVENTS';if(s.includes('LEAD'))return'MARKETING LEADS';if(s.includes('PERSONAL')||s.includes('CLIENT')||s.includes('SELF'))return'PERSONAL / EXISTING';if(s.includes('B2B'))return'B2B';if(s.includes('SOCIAL'))return'SOCIAL MEDIA';return'OTHER';}
+function rolling(months){const list=filterTx(S.filters,{ignoreTime:true});const d=new Date();const from=new Date(d.getFullYear(),d.getMonth()-months+1,1).toISOString().slice(0,10);return sum(list.filter(t=>t.date&&t.date>=from),t=>t.net);}
+function leaderboardTable(rows,scope,tot){const cols=[{h:'#',f:r=>`<span class="rank">${r.rank}</span>`},{h:'Agent',f:r=>`<b>${esc(r.key)}</b>`},{h:'Team',f:r=>esc(mainTeam(r.key,scope))},{h:'Closures',r:1,f:r=>fmtNum(r.n)},{h:'Net Revenue',r:1,f:r=>`<span title="${fmtCur(r.net,true)}">${fmtCur(r.net)}</span>`},{h:'Avg Revenue',r:1,f:r=>fmtCur(r.avg)},{h:'Last Sale',f:r=>fmtDate(r.last)},{h:'Days Since',r:1,f:r=>{const d=daysSince(r.last);const rc=recencyClass(d);return`<span class="tag ${rc.c}">${d==null?'—':d}</span>`}},{h:'Score',r:1,f:r=>{const s=agentScore(r.key,scope).score;return s==null?'N/A':`<b>${s}</b>`}},{h:'Contribution',f:r=>`<div style="display:flex;align-items:center;gap:8px"><div class="bar"><i style="width:${clamp(pct(r.net,tot)||0,0,100)}%"></i></div><span class="num">${fmtPct(pct(r.net,tot))}</span></div>`}];return tableHtml(cols,rows,{rowAttr:r=>`class="click" onclick="goto('agents',{agent:'${esc(r.key)}'})"`});}
+function mainTeam(agent,scope){const m=by((scope||T()).filter(t=>t.agent===agent),t=>t.team);let best=null;for(const[k,v]of m)if(!best||v.length>best.n)best={k,n:v.length};return best?best.k:'—';}
+function welcomeHtml(){return`<div class="welcome"><div class="box"><div class="brand" style="justify-content:center"><div class="logo">N</div></div><h2>Welcome to Novara Business Intelligence</h2><p>Upload your sales closure Excel file to begin. The dashboard reads the workbook, validates the required columns and builds every KPI from your data — nothing is hard-coded.</p><div class="drop" id="dropWelcome"><b>Upload Excel</b> or drag your .xlsx here<br><span class="hint">Required columns: Agent Name · Date of Closure · Developer · Net Revenue for Novara · Team</span></div><p class="hint mt">Or place a <span class="mono">data.json</span> generated by <span class="mono">convert.py</span> next to this file.</p></div></div>`;}
+function printSummary(){window.print();}
+function exportTx(){const list=filterTx();const data=list.map(t=>({Date:fmtDate(t.date),Agent:t.agent,Team:t.team,Developer:t.developer,Property:t.property,Unit:t.unit,Client:t.client,Source:t.source,'Property Value':t.propertyValue,'Gross Commission':t.gross,'Net Revenue':t.net,Invoice:t.invoice}));toXLSX('novara_transactions',data,'Transactions');}
+
+/* ============================================================
+   MODULE 8 — Teams, Developers, Agents, Leaderboards, Alerts
+   ============================================================ */
+function selectorHtml(id,label,options,value,{allowEmpty}={}){return`<select class="sel" id="${id}">${allowEmpty?`<option value="">${esc(label)}</option>`:''}${options.map(o=>`<option ${o===value?'selected':''}>${esc(o)}</option>`).join('')}</select>`;}
+function perfStatus(r,scope,tot){const d=daysSince(r.last);if(d==null)return['No Sales','n'];const share=pct(r.net,tot)||0;if(d<=S.settings.thAttention&&share>=8)return['Excellent','g'];if(d<=S.settings.thAttention)return['Good','g'];if(d<=S.settings.thWarning)return['Watch','a'];if(d<=S.settings.thCritical)return['Warning','a'];return['Critical','r'];}
+
+function renderTeams(){
+  const el=$('#page-teams');if(!T().length)return el.innerHTML=welcomeHtml();
+  const scope=filterTx(S.filters,{ignoreTeam:true});const teams=rank(scope,t=>t.team);
+  if(!S.sel.team||!teams.some(t=>t.key===S.sel.team))S.sel.team=teams[0]?.key;
+  const tm=S.sel.team;const list=scope.filter(t=>t.team===tm);const tot=sum(list,t=>t.net);const ctot=sum(scope,t=>t.net);const ag=rank(list,t=>t.agent);const last=ag.length?ag.map(r=>r.last).filter(Boolean).sort().slice(-1)[0]:null;const lead=leaderOf(tm);
+  const activeAg=ag.filter(r=>daysSince(r.last)!=null&&daysSince(r.last)<=S.settings.thAttention).length;
+  const {cur,prev}=comparisonSets();const cT=sum(cur.filter(t=>t.team===tm),t=>t.net),pT=sum(prev.filter(t=>t.team===tm),t=>t.net);
+  el.innerHTML=`<div class="ph"><div><h2>Team Performance</h2><p>Team analytics respect the global filters (except the Team filter)</p></div><div class="acts">${selectorHtml('teamSel','Team',teams.map(t=>t.key),tm)}<button class="btn sm" onclick="exportTeamTable()">Export table</button></div></div>
+  <div class="card"><div class="profile"><div class="avatar lg">${esc(initials(tm))}</div><div><div class="nm">${esc(tm)}</div><div class="meta"><span>Team leader: <b>${esc(lead||'Not set')}</b></span><span>Agents: <b>${ag.length}</b></span><span>Active agents (≤${S.settings.thAttention}d): <b>${activeAg}</b></span><span>Contribution: <b>${fmtPct(pct(tot,ctot))}</b></span><span>Last transaction: <b>${fmtDate(last)}</b></span></div></div><div class="recency ${recencyClass(daysSince(last)).cls}"><div class="n">${daysSince(last)??'—'}</div><div class="t">days since last team sale</div></div></div></div>
+  <div class="grid g5 mt">${kpi('Total Net Revenue',fmtCur(tot),{delta:delta(cT,pT),sub:comparisonSets().label,full:fmtCur(tot,true)})}${kpi('Transactions',fmtNum(list.length),{delta:delta(cur.filter(t=>t.team===tm).length,prev.filter(t=>t.team===tm).length),sub:comparisonSets().label})}${kpi('Avg Revenue / Agent',fmtCur(ag.length?tot/ag.length:null),{full:fmtCur(ag.length?tot/ag.length:null,true)})}${kpi('Avg Revenue / Transaction',fmtCur(list.length?tot/list.length:null),{full:fmtCur(list.length?tot/list.length:null,true)})}${kpi('Top-3 Share of Team',fmtPct(pct(sum(ag.slice(0,3),r=>r.net),tot)),{sub:'dependency on top performers',tip:'Share of team revenue produced by its top 3 agents. Above 70% = key-person risk.'})}</div>
+  <div class="grid g2 mt"><div class="card"><div class="ch"><div><h3>Revenue & Transactions Trend</h3><p>Monthly team performance</p></div></div><div class="cb"><div id="tTrend" class="chart"></div></div></div><div class="card"><div class="ch"><div><h3>Agent Ranking Within Team</h3><p>Click an agent to open the profile</p></div></div><div class="cb"><div id="tAgents" class="chart"></div></div></div></div>
+  <div class="grid g2 mt"><div class="card"><div class="ch"><div><h3>Team Revenue by Developer</h3></div></div><div class="cb"><div id="tDevs" class="chart"></div></div></div><div class="card"><div class="ch"><div><h3>Team Sales Distribution</h3><p>Share of team revenue by agent</p></div></div><div class="cb"><div id="tDonut" class="chart"></div></div></div></div>
+  <div class="card mt"><div class="ch"><div><h3>Monthly Agent Heatmap</h3></div></div><div class="cb"><div id="tHeat" class="chart"></div></div></div>
+  <div class="card mt"><div class="ch"><div><h3>Team Performance Table</h3></div></div><div class="cb flush" id="tTable"></div></div>
+  <div class="card mt"><div class="ch"><div><h3>Team Leaderboard</h3><p>All teams in the filtered period</p></div></div><div class="cb flush" id="tLb"></div></div>`;
+  $('#teamSel').onchange=e=>{S.sel.team=e.target.value;renderTeams();};
+  const sm=seriesByMonth(list);lineBars('tTrend',sm.map(r=>monthLbl(r.key)),[{name:'Net Revenue',data:sm.map(r=>Math.round(r.net)),type:'bar'},{name:'Transactions',data:sm.map(r=>r.n),type:'line',yAxisIndex:1,color:PAL[4]}],{type:'column'});
+  $('#tAgents').style.height=Math.max(260,ag.length*26+40)+'px';hbar('tAgents',ag,{extra:o=>`${o.n} closures · avg ${fmtCur(o.avg)} · ${fmtPct(pct(o.net,tot))} of team`,onClick:o=>goto('agents',{agent:o.key})});
+  hbar('tDevs',rank(list,t=>t.developer).slice(0,12),{onClick:o=>goto('developers',{developer:o.key})});donut('tDonut',ag.slice(0,10));
+  const months=monthRange(list);const m=new Map();list.filter(t=>t.date).forEach(t=>{const k=t.agent+'|'+monthKey(t.date);m.set(k,(m.get(k)||0)+t.net);});const cells=[];ag.forEach((r,ri)=>months.forEach((mo,mi)=>cells.push([mi,ri,Math.round(m.get(r.key+'|'+mo)||0)])));heatmap('tHeat',ag.map(r=>r.key),months.map(monthLbl),cells);
+  const cols=[{h:'Agent',f:r=>`<b>${esc(r.key)}</b>`},{h:'Transactions',r:1,f:r=>fmtNum(r.n)},{h:'Net Revenue',r:1,f:r=>fmtCur(r.net)},{h:'Avg Revenue',r:1,f:r=>fmtCur(r.avg)},{h:'Contribution',r:1,f:r=>fmtPct(pct(r.net,tot))},{h:'Last Sale',f:r=>fmtDate(r.last)},{h:'Days Since',r:1,f:r=>daysSince(r.last)??'—'},{h:'Status',f:r=>{const[s,c]=perfStatus(r,list,tot);return`<span class="tag ${c}">${s}</span>`}}];S._teamTable={cols,rows:ag};$('#tTable').innerHTML=tableHtml(cols,ag,{rowAttr:r=>`class="click" onclick="goto('agents',{agent:'${esc(r.key)}'})"`});
+  const pq=rank(prev,t=>t.team);const lb=teams.map(t=>({...t,active:rank(scope.filter(x=>x.team===t.key),x=>x.agent).filter(r=>daysSince(r.last)<=S.settings.thAttention).length,growth:delta(sum(cur.filter(x=>x.team===t.key),x=>x.net),pq.find(p=>p.key===t.key)?.net)}));
+  $('#tLb').innerHTML=tableHtml([{h:'#',f:r=>`<span class="rank">${r.rank}</span>`},{h:'Team',f:r=>`<b>${esc(r.key)}</b>`},{h:'Revenue',r:1,f:r=>fmtCur(r.net)},{h:'Transactions',r:1,f:r=>fmtNum(r.n)},{h:'Agents',r:1,f:r=>r.agents},{h:'Active Agents',r:1,f:r=>r.active},{h:'Revenue / Agent',r:1,f:r=>fmtCur(r.agents?r.net/r.agents:0)},{h:'Growth',r:1,f:r=>deltaHtml(r.growth)},{h:'Share',r:1,f:r=>fmtPct(pct(r.net,ctot))}],lb,{rowAttr:r=>`class="click" onclick="S.sel.team='${esc(r.key)}';renderTeams()"`});
+}
+function leaderOf(team){const e=S.employees.find(x=>(x.team||'').toUpperCase()===team&&/lead|manager|head|director/i.test(x.title||''));return e?e.name:null;}
+function exportTeamTable(){if(!S._teamTable)return;toXLSX('team_'+S.sel.team,exportRows('',S._teamTable.cols,S._teamTable.rows),'Team');}
+
+function renderDevelopers(){
+  const el=$('#page-developers');if(!T().length)return el.innerHTML=welcomeHtml();
+  const scope=filterTx(S.filters,{ignoreDev:true});const devs=rank(scope,t=>t.developer);const ctot=sum(scope,t=>t.net);
+  if(!S.sel.developer||!devs.some(d=>d.key===S.sel.developer))S.sel.developer=devs[0]?.key;
+  const dv=S.sel.developer;const list=scope.filter(t=>t.developer===dv);const tot=sum(list,t=>t.net);const d=devs.find(x=>x.key===dv)||{};
+  const {cur,prev,label}=comparisonSets();const cD=sum(cur.filter(t=>t.developer===dv),t=>t.net),pD=sum(prev.filter(t=>t.developer===dv),t=>t.net);
+  const cmpSel=S.sel.compare.filter(c=>devs.some(x=>x.key===c));
+  el.innerHTML=`<div class="ph"><div><h2>Developer Analytics</h2><p>Which developers make money for Novara, and through whom</p></div><div class="acts">${selectorHtml('devSel','Developer',devs.map(t=>t.key),dv)}<button class="btn sm" onclick="exportDevTx()">Export closures</button></div></div>
+  <div class="grid g5">${kpi('Net Revenue for Novara',fmtCur(tot),{delta:delta(cD,pD),sub:label,full:fmtCur(tot,true)})}${kpi('Transactions',fmtNum(list.length),{delta:delta(cur.filter(t=>t.developer===dv).length,prev.filter(t=>t.developer===dv).length),sub:label})}${kpi('Avg Revenue / Transaction',fmtCur(list.length?tot/list.length:null),{full:fmtCur(list.length?tot/list.length:null,true)})}${kpi('Company Contribution',fmtPct(pct(tot,ctot)),{sub:`rank #${d.rank||'—'} of ${devs.length}`})}${kpi('Property Value Sold',fmtCur(d.pv),{full:fmtCur(d.pv,true),sub:'avg take '+fmtPct(pct(tot,d.pv),2)})}</div>
+  <div class="grid g5 mt">${kpi('Agents Selling',fmtNum(d.agents),{small:true})}${kpi('Teams Selling',fmtNum(d.teams),{small:true})}${kpi('First Recorded Sale',fmtDate(d.first),{small:true})}${kpi('Latest Sale',fmtDate(d.last),{small:true})}${kpi('Days Since Last Sale',d.last?daysSince(d.last):'N/A',{small:true,sub:recencyClass(daysSince(d.last)).lbl})}</div>
+  <div class="grid g2 mt"><div class="card"><div class="ch"><div><h3>Revenue & Transaction Trend</h3></div></div><div class="cb"><div id="dTrend" class="chart"></div></div></div><div class="card"><div class="ch"><div><h3>Revenue by Year & Quarter</h3></div></div><div class="cb"><div id="dQtr" class="chart"></div></div></div></div>
+  <div class="grid g2 mt"><div class="card"><div class="ch"><div><h3>Top Agents for ${esc(dv)}</h3></div></div><div class="cb"><div id="dAgents" class="chart"></div></div></div><div class="card"><div class="ch"><div><h3>Top Teams for ${esc(dv)}</h3></div></div><div class="cb"><div id="dTeams" class="chart"></div></div></div></div>
+  <div class="grid g3 mt"><div class="card"><div class="ch"><div><h3>Projects</h3><p>Revenue by property / project</p></div></div><div class="cb"><div id="dProj" class="chart"></div></div></div><div class="card"><div class="ch"><div><h3>Deal Size Distribution</h3><p>Property value bands</p></div></div><div class="cb"><div id="dBands" class="chart"></div></div></div><div class="card"><div class="ch"><div><h3>Commission Waterfall</h3><p>Gross → agent/TL/SH → net</p></div></div><div class="cb"><div id="dWater" class="chart"></div></div></div></div>
+  <div class="card mt"><div class="ch"><div><h3>Developer Comparison</h3><p>Select 2–5 developers to compare side by side</p></div><div id="dCmpSel"></div></div><div class="cb"><div id="dCmpBody"></div></div></div>
+  <div class="card mt"><div class="ch"><div><h3>Developer Leaderboard</h3></div></div><div class="cb flush" id="dLb"></div></div>`;
+  $('#devSel').onchange=e=>{S.sel.developer=e.target.value;renderDevelopers();};
+  const sm=seriesByMonth(list);lineBars('dTrend',sm.map(r=>monthLbl(r.key)),[{name:'Net Revenue',data:sm.map(r=>Math.round(r.net)),type:'bar'},{name:'Transactions',data:sm.map(r=>r.n),type:'line',yAxisIndex:1,color:PAL[4]}],{type:'column'});
+  const q=aggPeriod(list,'quarter');lineBars('dQtr',q.map(r=>r.key),[{name:'Net Revenue',data:q.map(r=>Math.round(r.net))}],{type:'column'});
+  const ag=rank(list,t=>t.agent).slice(0,12);hbar('dAgents',ag,{extra:o=>`${o.n} closures · ${fmtPct(pct(o.net,tot))} of developer revenue`,onClick:o=>goto('agents',{agent:o.key})});hbar('dTeams',rank(list,t=>t.team),{extra:o=>`${fmtPct(pct(o.net,tot))} of developer revenue`,onClick:o=>goto('teams',{team:o.key})});
+  hbar('dProj',rank(list,t=>(t.property||'Unspecified').toUpperCase()).slice(0,10));
+  const bands=[[0,5e5,'< 500K'],[5e5,1e6,'500K–1M'],[1e6,2e6,'1M–2M'],[2e6,5e6,'2M–5M'],[5e6,Infinity,'> 5M']];const bc=bands.map(b=>list.filter(t=>t.propertyValue!=null&&t.propertyValue>=b[0]&&t.propertyValue<b[1]).length);lineBars('dBands',bands.map(b=>b[2]),[{name:'Closures',data:bc}],{type:'column',money:false});
+  const g=sum(list,t=>t.gross),a=sum(list,t=>t.toAgent),tl=sum(list,t=>t.toTL),sh=sum(list,t=>t.toSH),te=sum(list,t=>t.toTele);waterfall('dWater',[['Gross Commission',g],['Agent share',-a],['Team leader',-tl],['Sales head',-sh],['Telecaller',-te],['Net to Novara',tot]]);
+  multiSelect($('#dCmpSel'),{label:'Compare developers',options:devs.map(x=>x.key),selected:S.sel.compare,onChange:()=>drawCompare()});
+  const drawCompare=()=>{const sel=S.sel.compare.slice(0,5);const body=$('#dCmpBody');if(sel.length<2)return body.innerHTML='<div class="hint">Choose at least two developers above.</div>';const rows=sel.map(k=>{const r=devs.find(x=>x.key===k);const c=sum(cur.filter(t=>t.developer===k),t=>t.net),p=sum(prev.filter(t=>t.developer===k),t=>t.net);return{...r,growth:delta(c,p)};});body.innerHTML=`<div class="grid g2"><div id="dCmp1" class="chart short"></div><div id="dCmp2" class="chart short"></div></div>`+tableHtml([{h:'Developer',f:r=>`<b>${esc(r.key)}</b>`},{h:'Revenue',r:1,f:r=>fmtCur(r.net)},{h:'Transactions',r:1,f:r=>fmtNum(r.n)},{h:'Rev / Txn',r:1,f:r=>fmtCur(r.avg)},{h:'Active Agents',r:1,f:r=>r.agents},{h:'Growth',r:1,f:r=>deltaHtml(r.growth)},{h:'Contribution',r:1,f:r=>fmtPct(pct(r.net,ctot))},{h:'Latest Sale',f:r=>fmtDate(r.last)}],rows);lineBars('dCmp1',rows.map(r=>r.key),[{name:'Net Revenue',data:rows.map(r=>Math.round(r.net))}],{type:'column'});lineBars('dCmp2',rows.map(r=>r.key),[{name:'Transactions',data:rows.map(r=>r.n),color:PAL[4]}],{type:'column',money:false});};drawCompare();
+  const pq=rank(prev,t=>t.developer);$('#dLb').innerHTML=tableHtml([{h:'#',f:r=>`<span class="rank">${r.rank}</span>`},{h:'Developer',f:r=>`<b>${esc(r.key)}</b>`},{h:'Revenue',r:1,f:r=>fmtCur(r.net)},{h:'Transactions',r:1,f:r=>fmtNum(r.n)},{h:'Agents',r:1,f:r=>r.agents},{h:'Teams',r:1,f:r=>r.teams},{h:'Avg Revenue',r:1,f:r=>fmtCur(r.avg)},{h:'Growth',r:1,f:r=>deltaHtml(delta(sum(cur.filter(t=>t.developer===r.key),t=>t.net),pq.find(p=>p.key===r.key)?.net))},{h:'Share',r:1,f:r=>fmtPct(pct(r.net,ctot))},{h:'Last Sale',f:r=>fmtDate(r.last)}],devs,{rowAttr:r=>`class="click" onclick="S.sel.developer='${esc(r.key)}';renderDevelopers()"`});
+}
+function waterfall(id,steps){const cats=steps.map(s=>s[0]);let run=0;const inv=[],val=[],col=[];steps.forEach((s,i)=>{const last=i===steps.length-1;if(last){inv.push(0);val.push(Math.round(s[1]));col.push(PAL[0]);}else{if(s[1]>=0){inv.push(run);val.push(Math.round(s[1]));run+=s[1];col.push(PAL[1]);}else{run+=s[1];inv.push(run);val.push(Math.round(-s[1]));col.push('#D96C6C');}}});chart(id,{tooltip:{trigger:'axis',formatter:ps=>`<b>${esc(ps[0].axisValue)}</b><br>${fmtCur(ps[1].value,true)}`},xAxis:{type:'category',data:cats,...axisStyle(),axisLabel:{color:cssv('--text-3'),fontSize:10,interval:0,rotate:20}},yAxis:{type:'value',...moneyAxis()},series:[{type:'bar',stack:'w',data:inv,itemStyle:{color:'transparent'},barMaxWidth:36},{type:'bar',stack:'w',data:val.map((v,i)=>({value:v,itemStyle:{color:col[i],borderRadius:3}})),barMaxWidth:36}]});}
+function exportDevTx(){const rows=filterTx(S.filters,{ignoreDev:true}).filter(t=>t.developer===S.sel.developer);toXLSX('developer_'+S.sel.developer,rows.map(t=>({Date:fmtDate(t.date),Agent:t.agent,Team:t.team,Property:t.property,Unit:t.unit,Client:t.client,'Property Value':t.propertyValue,'Net Revenue':t.net})));}
+
+/* ---------- Agents ---------- */
+function empForAgent(agent){const id=S.mappings[agent];if(id){const e=S.employees.find(x=>x.id===id);if(e)return e;}return S.employees.find(x=>x.name.toUpperCase()===agent)||null;}
+function renderAgents(){
+  const el=$('#page-agents');if(!T().length)return el.innerHTML=welcomeHtml();
+  const scope=filterTx(S.filters,{ignoreAgent:true});const agents=rank(scope,t=>t.agent).filter(r=>r.key!=='UNASSIGNED');const allAgents=uniq(T().map(t=>t.agent)).filter(a=>a!=='UNASSIGNED').sort();
+  if(!S.sel.agent||!allAgents.includes(S.sel.agent))S.sel.agent=agents[0]?.key||allAgents[0];
+  const ag=S.sel.agent;const life=T().filter(t=>t.agent===ag);const list=scope.filter(t=>t.agent===ag);const tot=sum(list,t=>t.net),ltot=sum(life,t=>t.net);const ctot=sum(scope,t=>t.net);
+  const last=life.map(t=>t.date).filter(Boolean).sort().slice(-1)[0];const ds=daysSince(last);const rc=recencyClass(ds);const emp=empForAgent(ag);const sc=agentScore(ag,scope);
+  const ms=byMonth(life);const bestM=[...ms].sort((a,b)=>b.net-a.net)[0];const ys=aggPeriod(life,'year');const bestY=[...ys].sort((a,b)=>b.net-a.net)[0];const tenureM=monthRange(life).length||1;
+  const {cur,prev,label}=comparisonSets();const cA=sum(cur.filter(t=>t.agent===ag),t=>t.net),pA=sum(prev.filter(t=>t.agent===ag),t=>t.net);
+  // alerts
+  const al=[];if(ds!=null&&ds>S.settings.thAttention)al.push({k:ds>S.settings.thCritical?'CRITICAL':'WARNING',t:`Agent has not made a sale in ${ds} days.`});
+  const today=new Date();const c6=new Date(today.getFullYear(),today.getMonth()-6,1).toISOString().slice(0,10);const c1=new Date(today.getFullYear(),today.getMonth(),1).toISOString().slice(0,10);const avg6=sum(life.filter(t=>t.date>=c6&&t.date<c1),t=>t.net)/6;const lastM=sum(life.filter(t=>t.date>=c1),t=>t.net);if(avg6>0&&lastM<avg6*.6)al.push({k:'WARNING',t:`Current month revenue is ${fmtPct(100-lastM/avg6*100)} below the 6-month monthly average (${fmtCur(avg6)}).`});
+  const qs=`${today.getFullYear()}-${String(Math.floor(today.getMonth()/3)*3+1).padStart(2,'0')}-01`;if(!life.some(t=>t.date>=qs)&&life.length)al.push({k:'WARNING',t:'Zero transactions recorded in the current quarter.'});
+  el.innerHTML=`<div class="ph"><div><h2>Agent Profile & Performance</h2><p>Lifetime figures use all data; period figures respect the global filters</p></div><div class="acts">${selectorHtml('agentSel','Agent',allAgents,ag)}<button class="btn sm" onclick="openAgentMapping('${esc(ag)}')">Link to employee</button></div></div>
+  <div class="card"><div class="profile"><div class="avatar lg" id="agAvatar" style="cursor:pointer" title="Click to upload photo">${emp?.photo?`<img src="${emp.photo}">`:esc(initials(ag))}</div><div><div class="nm">${esc(ag)}</div><div class="meta"><span>Team: <b>${esc(mainTeam(ag))}</b></span><span>Employee: <b>${emp?esc(emp.name)+' · '+esc(emp.empId||''):'Not linked'}</b></span>${emp?.title?`<span>Title: <b>${esc(emp.title)}</b></span>`:''}${emp?.manager?`<span>Reports to: <b>${esc(emp.manager)}</b></span>`:''}</div>
+  <div class="fields"><div><label>Date of joining</label><input type="date" class="inp" id="agDoj" value="${emp?.doj||''}" style="width:100%"></div><div><label>Contract type</label><select class="sel" id="agContract" style="width:100%">${['','Commission','Salary','50 - 50','Retention'].map(o=>`<option ${emp?.contract===o?'selected':''}>${o}</option>`).join('')}</select></div><div><label>Employment status</label><select class="sel" id="agStatus" style="width:100%">${['','Active','Resigned','Terminated','In-Active'].map(o=>`<option ${emp?.status===o?'selected':''}>${o}</option>`).join('')}</select></div><div><label>&nbsp;</label><button class="btn primary" id="agSave" style="width:100%">Save profile</button></div></div></div>
+  <div><div class="recency ${rc.cls}"><div class="n">${ds??'—'}</div><div class="t">days since last sale · ${rc.lbl}</div><div class="hint" style="margin-top:6px;color:inherit;opacity:.8">Last sale: ${fmtDate(last)}</div></div>
+  <div class="score mt" style="justify-content:center"><div class="ring" style="background:conic-gradient(${sc.score>=70?'var(--green)':sc.score>=45?'var(--amber)':'var(--red)'} ${sc.score||0}%, var(--border) 0)"><i>${sc.score??'—'}</i></div><div><div style="font-weight:600">Performance score <span class="info" data-tip="0–100 weighted model: revenue rank 30%, transaction rank 20%, sales recency 20%, monthly consistency 15%, 3-month growth 15%. Agents with under 3 months of history get neutral consistency/growth so they are not penalised.">i</span></div><div class="hint">Consistency ${sc.active||0}/${sc.tenure||0} months${sc.isNew?' · new agent':''}${sc.gr!=null?' · 3M growth '+fmtPct(sc.gr):''}</div></div></div></div></div></div>
+  ${al.length?`<div class="grid g${Math.min(3,al.length)} mt">${al.map(a=>`<div class="alert ${a.k}"><span class="k">${a.k}</span><p>${a.t}</p></div>`).join('')}</div>`:''}
+  <div class="grid g5 mt">${kpi('Lifetime Net Revenue',fmtCur(ltot),{full:fmtCur(ltot,true),sub:life.length+' lifetime closures'})}${kpi('Period Revenue',fmtCur(tot),{delta:delta(cA,pA),sub:label,full:fmtCur(tot,true)})}${kpi('Period Transactions',fmtNum(list.length),{delta:delta(cur.filter(t=>t.agent===ag).length,prev.filter(t=>t.agent===ag).length),sub:label})}${kpi('Avg Revenue / Transaction',fmtCur(life.length?ltot/life.length:null),{full:fmtCur(life.length?ltot/life.length:null,true),sub:'lifetime'})}${kpi('Avg Monthly Revenue',fmtCur(ltot/tenureM),{sub:`over ${tenureM} months`,tip:'Lifetime revenue ÷ months between first and last closure.'})}</div>
+  <div class="grid g5 mt">${kpi('Best Month',bestM?monthLbl(bestM.key):'N/A',{small:true,sub:bestM?fmtCur(bestM.net):''})}${kpi('Best Year',bestY?bestY.key:'N/A',{small:true,sub:bestY?fmtCur(bestY.net):''})}${kpi('Contribution',fmtPct(pct(tot,ctot)),{small:true,sub:'of filtered company revenue'})}${kpi('Developers Sold',fmtNum(uniq(life.map(t=>t.developer)).length),{small:true})}${kpi('Property Value Sold',fmtCur(sum(life,t=>t.propertyValue)),{small:true,full:fmtCur(sum(life,t=>t.propertyValue),true)})}</div>
+  <div class="grid g2 mt"><div class="card"><div class="ch"><div><h3>Monthly Revenue & Transactions</h3><p>Lifetime</p></div></div><div class="cb"><div id="aTrend" class="chart"></div></div></div><div class="card"><div class="ch"><div><h3>Cumulative Revenue</h3></div></div><div class="cb"><div id="aCum" class="chart"></div></div></div></div>
+  <div class="grid g3 mt"><div class="card"><div class="ch"><div><h3>Revenue by Developer</h3></div></div><div class="cb"><div id="aDev" class="chart"></div></div></div><div class="card"><div class="ch"><div><h3>Revenue by Year & Quarter</h3></div></div><div class="cb"><div id="aQtr" class="chart"></div></div></div><div class="card"><div class="ch"><div><h3>Contribution Over Time</h3><p>Agent share of company monthly revenue</p></div></div><div class="cb"><div id="aShare" class="chart"></div></div></div></div>
+  <div class="card mt"><div class="ch"><div><h3>Monthly Heatmap</h3></div></div><div class="cb"><div id="aHeat" class="chart"></div></div></div>
+  <div class="card mt"><div class="ch"><div><h3>Sales History</h3><p>${life.length} closures</p></div><div class="toolbar"><input class="inp" id="aSearch" placeholder="Search history…" style="min-width:200px"><button class="btn sm" onclick="exportAgentHist('xlsx')">Excel</button><button class="btn sm" onclick="exportAgentHist('csv')">CSV</button></div></div><div class="cb flush" id="aHist"></div></div>`;
+  $('#agentSel').onchange=e=>{S.sel.agent=e.target.value;renderAgents();};
+  $('#agAvatar').onclick=()=>{$('#imgInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;const url=await resizeImage(await readFile(f,'dataurl'));const em=await ensureEmployeeForAgent(ag);em.photo=url;await DB.put('employees',em);e.target.value='';toast('Photo saved','ok');renderAgents();};$('#imgInput').click();};
+  $('#agSave').onclick=async()=>{const em=await ensureEmployeeForAgent(ag);em.doj=$('#agDoj').value;em.contract=$('#agContract').value;em.status=$('#agStatus').value;await DB.put('employees',em);toast('Profile saved','ok');renderAgents();};
+  const sm=seriesByMonth(life);lineBars('aTrend',sm.map(r=>monthLbl(r.key)),[{name:'Net Revenue',data:sm.map(r=>Math.round(r.net)),type:'bar'},{name:'Transactions',data:sm.map(r=>r.n),type:'line',yAxisIndex:1,color:PAL[4]}],{type:'column'});
+  let c=0;lineBars('aCum',sm.map(r=>monthLbl(r.key)),[{name:'Cumulative',data:sm.map(r=>Math.round(c+=r.net))}],{type:'area'});
+  hbar('aDev',rank(life,t=>t.developer).slice(0,10),{onClick:o=>goto('developers',{developer:o.key})});
+  const q=aggPeriod(life,'quarter');lineBars('aQtr',q.map(r=>r.key),[{name:'Net Revenue',data:q.map(r=>Math.round(r.net))}],{type:'column'});
+  const cm=new Map(byMonth(T()).map(o=>[o.key,o.net]));lineBars('aShare',sm.map(r=>monthLbl(r.key)),[{name:'Share %',data:sm.map(r=>+((pct(r.net,cm.get(r.key))||0).toFixed(1)))}],{type:'line',money:false});
+  const months=monthRange(life);const yrs=uniq(months.map(m=>m.slice(0,4)));const mm=new Map(sm.map(r=>[r.key,r.net]));const cells=[];yrs.forEach((y,yi)=>MONTHS.forEach((mo,mi)=>{const k=`${y}-${String(mi+1).padStart(2,'0')}`;cells.push([mi,yi,Math.round(mm.get(k)||0)]);}));heatmap('aHeat',yrs,MONTHS,cells);
+  const cols=[{h:'Date',f:t=>fmtDate(t.date)+(t.dateEstimated?' <span class="tag n" title="Date reconstructed from Year/Month columns">est.</span>':''),raw:t=>t.date},{h:'Developer',f:t=>esc(t.developer)},{h:'Project',f:t=>esc(t.property||'—')},{h:'Unit',f:t=>esc(t.unit||'—')},{h:'Client',f:t=>esc(t.client||'—')},{h:'Team',f:t=>esc(t.team)},{h:'Source',f:t=>esc(t.source||'—')},{h:'Property Value',r:1,f:t=>fmtCur(t.propertyValue),raw:t=>t.propertyValue},{h:'Gross Comm.',r:1,f:t=>fmtCur(t.gross),raw:t=>t.gross},{h:'Agent Share',r:1,f:t=>fmtCur(t.toAgent),raw:t=>t.toAgent},{h:'Net Revenue',r:1,f:t=>`<b>${fmtCur(t.net)}</b>`,raw:t=>t.net},{h:'DP',f:t=>esc(t.dpStatus||'—')},{h:'Docs',f:t=>esc(t.docStatus||'—')},{h:'Invoice',f:t=>esc(t.invoice||'—')}];
+  S._agentHist={cols,rows:life};pagedTable('aHist',cols,life,{search:'#aSearch',sortKey:'date',desc:true});
+}
+async function ensureEmployeeForAgent(agent){let em=empForAgent(agent);if(em)return em;em={id:'emp_'+Date.now(),empId:nextEmpId(),name:titleCase(agent),title:'Property Consultant',department:'Sales',team:mainTeam(agent),manager:'',doj:'',status:'Active',contract:'Commission',salary:0,benefits:[],email:'',mobile:'',notes:'Auto-created from agent profile',photo:null};S.employees.push(em);S.mappings[agent]=em.id;await DB.put('mappings',{id:agent,empId:em.id});return em;}
+const titleCase=s=>String(s||'').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+function exportAgentHist(kind){if(!S._agentHist)return;const data=exportRows('',S._agentHist.cols,S._agentHist.rows);kind==='csv'?toCSV('agent_'+S.sel.agent,data):toXLSX('agent_'+S.sel.agent,data,'History');}
+function openAgentMapping(agent){const m=modal(`<div class="mh"><h3>Link sales agent to employee</h3><button class="btn sm ghost" onclick="closeModal()">✕</button></div><div class="mb"><p class="hint" style="margin-bottom:10px">Sales name in Excel: <b>${esc(agent)}</b>. Choose the employee profile this name belongs to. The mapping is remembered.</p><select class="sel" id="mapSel" style="width:100%"><option value="">— Create new employee from this agent —</option>${S.employees.map(e=>`<option value="${e.id}" ${S.mappings[agent]===e.id?'selected':''}>${esc(e.name)} (${esc(e.empId||'')})</option>`).join('')}</select></div><div class="mf"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="mapOk">Save link</button></div>`,{cls:'sm'});$('#mapOk').onclick=async()=>{const v=$('#mapSel').value;if(v){S.mappings[agent]=v;await DB.put('mappings',{id:agent,empId:v});}else await ensureEmployeeForAgent(agent);closeModal();toast('Mapping saved','ok');renderAgents();};}
+
+/* generic paged/sortable/searchable table */
+function pagedTable(hostId,cols,rows,{search,sortKey,desc=false,pageSize=15}={}){const host=document.getElementById(hostId);let st={q:'',page:1,sort:sortKey,desc};const draw=()=>{let r=rows;if(st.q){const q=st.q.toLowerCase();r=r.filter(x=>JSON.stringify(x).toLowerCase().includes(q));}if(st.sort){const c=cols.find(c=>(c.raw?c.raw.toString():'').includes(st.sort))||null;r=[...r].sort((a,b)=>{const va=a[st.sort]??'',vb=b[st.sort]??'';return(va<vb?-1:va>vb?1:0)*(st.desc?-1:1);});}const pages=Math.max(1,Math.ceil(r.length/pageSize));st.page=clamp(st.page,1,pages);const slice=r.slice((st.page-1)*pageSize,st.page*pageSize);host.innerHTML=tableHtml(cols,slice)+`<div class="tbl-foot"><span>${r.length} records · page ${st.page} of ${pages}</span><div class="pg">${[...Array(Math.min(pages,7))].map((_,i)=>{const p=pages<=7?i+1:clamp(st.page-3,1,pages-6)+i;return`<button data-p="${p}" class="${p===st.page?'on':''}">${p}</button>`;}).join('')}</div></div>`;$$('.pg button',host).forEach(b=>b.onclick=()=>{st.page=+b.dataset.p;draw();});$$('th',host).forEach((th,i)=>{th.onclick=()=>{const key=keyOf(cols[i]);if(!key)return;if(st.sort===key)st.desc=!st.desc;else{st.sort=key;st.desc=true;}draw();};});};const keyOf=c=>{const m=(c.raw||c.f).toString().match(/t\.([a-zA-Z]+)/);return m?m[1]:null;};if(search){const inp=$(search);if(inp)inp.oninput=debounce(()=>{st.q=inp.value;st.page=1;draw();},200);}draw();}
+
+/* ---------- Leaderboards ---------- */
+function renderLeaderboard(){const el=$('#page-leaderboard');if(!T().length)return el.innerHTML=welcomeHtml();const list=filterTx();const tot=sum(list,t=>t.net);const ag=rank(list,t=>t.agent).filter(r=>r.key!=='UNASSIGNED');const tm=rank(list,t=>t.team);const dv=rank(list,t=>t.developer);const {cur,prev}=comparisonSets();const pt=rank(prev,t=>t.team),pd=rank(prev,t=>t.developer);
+  el.innerHTML=`<div class="ph"><div><h2>Leaderboards</h2><p>Use the global Year / Quarter / Month filters to change the ranking period</p></div><div class="acts"><button class="btn sm" onclick="toXLSX('agent_leaderboard',S._lb.agents,'Agents')">Export agents</button></div></div>
+  <div class="card"><div class="ch"><div><h3>Agent Leaderboard</h3></div></div><div class="cb flush">${leaderboardTable(ag,list,tot)}</div></div>
+  <div class="grid g2 mt"><div class="card"><div class="ch"><div><h3>Team Leaderboard</h3></div></div><div class="cb flush">${tableHtml([{h:'#',f:r=>`<span class="rank">${r.rank}</span>`},{h:'Team',f:r=>`<b>${esc(r.key)}</b>`},{h:'Revenue',r:1,f:r=>fmtCur(r.net)},{h:'Txns',r:1,f:r=>r.n},{h:'Rev/Agent',r:1,f:r=>fmtCur(r.agents?r.net/r.agents:0)},{h:'Active',r:1,f:r=>rank(list.filter(x=>x.team===r.key),x=>x.agent).filter(x=>daysSince(x.last)<=S.settings.thAttention).length},{h:'Growth',r:1,f:r=>deltaHtml(delta(sum(cur.filter(t=>t.team===r.key),t=>t.net),pt.find(p=>p.key===r.key)?.net))}],tm,{rowAttr:r=>`class="click" onclick="goto('teams',{team:'${esc(r.key)}'})"`})}</div></div>
+  <div class="card"><div class="ch"><div><h3>Developer Leaderboard</h3></div></div><div class="cb flush">${tableHtml([{h:'#',f:r=>`<span class="rank">${r.rank}</span>`},{h:'Developer',f:r=>`<b>${esc(r.key)}</b>`},{h:'Revenue',r:1,f:r=>fmtCur(r.net)},{h:'Txns',r:1,f:r=>r.n},{h:'Agents',r:1,f:r=>r.agents},{h:'Teams',r:1,f:r=>r.teams},{h:'Avg',r:1,f:r=>fmtCur(r.avg)},{h:'Growth',r:1,f:r=>deltaHtml(delta(sum(cur.filter(t=>t.developer===r.key),t=>t.net),pd.find(p=>p.key===r.key)?.net))}],dv,{rowAttr:r=>`class="click" onclick="goto('developers',{developer:'${esc(r.key)}'})"`})}</div></div></div>`;
+  S._lb={agents:ag.map(r=>({Rank:r.rank,Agent:r.key,Team:mainTeam(r.key,list),Transactions:r.n,'Net Revenue':r.net,'Avg Revenue':Math.round(r.avg),'Last Sale':r.last,'Days Since':daysSince(r.last),Score:agentScore(r.key,list).score,'Contribution %':+((pct(r.net,tot)||0).toFixed(2))}))};}
+
+/* ---------- Alert centre ---------- */
+function renderAlerts(){const el=$('#page-alerts');if(!T().length)return el.innerHTML=welcomeHtml();const A=alerts();const counts=by(A,a=>a.k);el.innerHTML=`<div class="ph"><div><h2>Executive Alert Centre</h2><p>${A.length} alerts generated from live data · thresholds configurable in Settings</p></div></div><div class="grid g5">${['CRITICAL','WARNING','CONCENTRATION','OPPORTUNITY','POSITIVE'].map(k=>kpi(k[0]+k.slice(1).toLowerCase(),fmtNum((counts.get(k)||[]).length),{small:false}))}</div><div class="mt" style="display:flex;flex-direction:column;gap:8px">${A.length?A.map((a,i)=>`<div class="alert ${a.k}" ${a.go?`style="cursor:pointer" onclick="S._alerts[${i}].go()"`:''}><span class="k">${a.k}</span><div><p>${a.t}</p>${a.s?`<small>${esc(a.s)}</small>`:''}</div></div>`).join(''):'<div class="card"><div class="empty">No alerts for the current data — everything is within thresholds.</div></div>'}</div>`;S._alerts=A;}
+
+/* ============================================================
+   MODULE 9 — Employees (persistent master data)
+   ============================================================ */
+const BENEFITS=['Housing allowance','Transport allowance','Visa','Insurance','Mobile allowance','Commission','Bonus','Other'];
+function nextEmpId(){const nums=S.employees.map(e=>+(String(e.empId||'').match(/(\d+)$/)||[])[1]||0);return'NVR-'+String((Math.max(0,...nums)+1)).padStart(3,'0');}
+function renderEmployees(){
+  const el=$('#page-employees');const E=S.employees;const st=S._empUi||(S._empUi={q:'',status:'',team:'',dept:'',view:'table'});
+  let rows=E.filter(e=>(!st.q||JSON.stringify(e).toLowerCase().includes(st.q.toLowerCase()))&&(!st.status||e.status===st.status)&&(!st.team||e.team===st.team)&&(!st.dept||e.department===st.dept));
+  const act=E.filter(e=>e.status==='Active');const cost=sum(act,e=>e.salary);
+  el.innerHTML=`<div class="ph"><div><h2>Employees</h2><p>Master data is stored locally in your browser (IndexedDB) and survives refreshes and Excel re-uploads</p></div><div class="acts"><button class="btn sm" onclick="exportEmployees()">Export</button><button class="btn primary" onclick="employeeForm()">+ Add employee</button></div></div>
+  <div class="grid g5">${kpi('Total Employees',fmtNum(E.length))}${kpi('Active',fmtNum(act.length),{sub:`${E.filter(e=>e.status==='In-Active').length} inactive · ${E.filter(e=>e.status==='Resigned').length} resigned · ${E.filter(e=>e.status==='Terminated').length} terminated`})}${kpi('Monthly Salary Cost',fmtCur(cost),{full:fmtCur(cost,true),sub:'active employees'})}${kpi('Average Salary',fmtCur(act.length?cost/act.length:null),{sub:'active employees'})}${kpi('Contract Mix',E.length?[...by(E,e=>e.contract||'—')].map(([k,v])=>`${k} ${v.length}`).join(' · '):'N/A',{small:true})}</div>
+  <div class="grid g3 mt"><div class="card"><div class="ch"><div><h3>Employees by Team</h3></div></div><div class="cb"><div id="eTeam" class="chart short"></div></div></div><div class="card"><div class="ch"><div><h3>Employees by Department</h3></div></div><div class="cb"><div id="eDept" class="chart short"></div></div></div><div class="card"><div class="ch"><div><h3>Salary Cost by Team</h3></div></div><div class="cb"><div id="eSal" class="chart short"></div></div></div></div>
+  <div class="card mt"><div class="ch"><div class="toolbar"><input class="inp" id="eSearch" placeholder="Search employees…" value="${esc(st.q)}" style="min-width:220px"><select class="sel" id="eStatus"><option value="">All statuses</option>${['Active','Resigned','Terminated','In-Active'].map(s=>`<option ${st.status===s?'selected':''}>${s}</option>`).join('')}</select><select class="sel" id="eTeamF"><option value="">All teams</option>${uniq(E.map(e=>e.team).filter(Boolean)).sort().map(s=>`<option ${st.team===s?'selected':''}>${esc(s)}</option>`).join('')}</select><select class="sel" id="eDeptF"><option value="">All departments</option>${uniq(E.map(e=>e.department).filter(Boolean)).sort().map(s=>`<option ${st.dept===s?'selected':''}>${esc(s)}</option>`).join('')}</select></div><div class="seg"><button data-a="table" class="${st.view==='table'?'on':''}">Table</button><button data-a="cards" class="${st.view==='cards'?'on':''}">Cards</button></div></div><div class="cb ${st.view==='table'?'flush':''}" id="eBody"></div></div>`;
+  const draw=()=>{const cols=[{h:'',f:e=>`<span class="avatar">${e.photo?`<img src="${e.photo}">`:esc(initials(e.name))}</span>`},{h:'ID',f:e=>`<span class="mono">${esc(e.empId)}</span>`},{h:'Name',f:e=>`<b>${esc(e.name)}</b>`},{h:'Role',f:e=>esc(e.title||'—')},{h:'Department',f:e=>esc(e.department||'—')},{h:'Team',f:e=>esc(e.team||'—')},{h:'Manager',f:e=>esc(e.manager||'—')},{h:'Joined',f:e=>fmtDate(e.doj)},{h:'Status',f:e=>`<span class="tag ${e.status==='Active'?'g':e.status==='In-Active'?'a':'r'}">${esc(e.status||'—')}</span>`},{h:'Salary',r:1,f:e=>fmtCur(e.salary)},{h:'Contract',f:e=>esc(e.contract||'—')},{h:'Actions',f:e=>`<button class="btn sm" onclick="viewEmployee('${e.id}')">View</button> <button class="btn sm" onclick="employeeForm('${e.id}')">Edit</button> <button class="btn sm danger" onclick="deleteEmployee('${e.id}')">Delete</button>`}];
+    if(st.view==='table')$('#eBody').innerHTML=E.length?tableHtml(cols,rows):`<div class="empty">No employees yet. Add your first employee or open an Agent profile and save it — a linked employee is created automatically.</div>`;
+    else $('#eBody').innerHTML=`<div class="grid g4">${rows.map(e=>`<div class="card" style="padding:16px;display:flex;gap:12px;align-items:center"><span class="avatar" style="width:48px;height:48px;font-size:16px">${e.photo?`<img src="${e.photo}">`:esc(initials(e.name))}</span><div style="min-width:0"><b>${esc(e.name)}</b><div class="hint">${esc(e.title||'—')} · ${esc(e.team||'—')}</div><div style="margin-top:6px"><span class="tag ${e.status==='Active'?'g':'r'}">${esc(e.status||'—')}</span> <button class="btn sm ghost" onclick="viewEmployee('${e.id}')">View</button></div></div></div>`).join('')||'<div class="empty">No employees match.</div>'}</div>`;};
+  draw();
+  $('#eSearch').oninput=debounce(e=>{st.q=e.target.value;rows=E.filter(x=>JSON.stringify(x).toLowerCase().includes(st.q.toLowerCase()));draw();},200);
+  ['eStatus','eTeamF','eDeptF'].forEach((id,i)=>$('#'+id).onchange=e=>{st[['status','team','dept'][i]]=e.target.value;renderEmployees();});
+  $$('#page-employees .seg button').forEach(b=>b.onclick=()=>{st.view=b.dataset.a;renderEmployees();});
+  const teamAgg=[...by(E,e=>e.team||'Unassigned')].map(([k,v])=>({key:k,net:v.length}));const deptAgg=[...by(E,e=>e.department||'Unassigned')].map(([k,v])=>({key:k,net:v.length}));
+  if(E.length){lineBars('eTeam',teamAgg.map(x=>x.key),[{name:'Employees',data:teamAgg.map(x=>x.net)}],{type:'column',money:false});donut('eDept',deptAgg,{value:r=>r.net});hbar('eSal',[...by(act,e=>e.team||'Unassigned')].map(([k,v])=>({key:k,net:sum(v,e=>e.salary)})).sort((a,b)=>b.net-a.net));}else['eTeam','eDept','eSal'].forEach(id=>emptyEl(id,'No employee data yet.'));
+}
+function employeeForm(id){const e=id?S.employees.find(x=>x.id===id):{id:'emp_'+Date.now(),empId:nextEmpId(),status:'Active',contract:'Commission',benefits:[],department:'Sales'};const managers=S.employees.filter(x=>x.id!==e.id);const teams=uniq([...S.employees.map(x=>x.team),...T().map(t=>t.team)].filter(Boolean)).sort();
+  modal(`<div class="mh"><h3>${id?'Edit employee':'Add employee'}</h3><button class="btn sm ghost" onclick="closeModal()">✕</button></div><div class="mb"><div class="form">
+  <div class="full" style="display:flex;gap:14px;align-items:center"><span class="avatar lg" id="efAvatar">${e.photo?`<img src="${e.photo}">`:esc(initials(e.name||'?'))}</span><div><button class="btn sm" id="efPhoto">Upload photo</button> ${e.photo?'<button class="btn sm ghost" id="efPhotoRm">Remove</button>':''}<div class="hint">JPG/PNG, stored locally</div></div></div>
+  <div><label>Employee name *</label><input class="inp" id="ef_name" value="${esc(e.name||'')}"></div><div><label>Employee ID</label><input class="inp" id="ef_empId" value="${esc(e.empId||'')}"></div>
+  <div><label>Job title</label><input class="inp" id="ef_title" value="${esc(e.title||'')}" list="titles"><datalist id="titles">${['CEO','Sales Director','Regional Head','Sales Manager','Team Leader','Property Consultant','Telecaller','Marketing Manager','Admin'].map(t=>`<option value="${t}">`).join('')}</datalist></div><div><label>Department</label><input class="inp" id="ef_department" value="${esc(e.department||'')}" list="depts"><datalist id="depts">${['Sales','Marketing','Operations','Finance','HR','Admin','Management'].map(t=>`<option value="${t}">`).join('')}</datalist></div>
+  <div><label>Team</label><input class="inp" id="ef_team" value="${esc(e.team||'')}" list="teamsDl"><datalist id="teamsDl">${teams.map(t=>`<option value="${esc(t)}">`).join('')}</datalist></div><div><label>Reporting manager</label><select class="sel" id="ef_manager"><option value="">— None (top of organisation) —</option>${managers.map(m=>`<option value="${esc(m.name)}" ${e.manager===m.name?'selected':''}>${esc(m.name)} — ${esc(m.title||'')}</option>`).join('')}</select></div>
+  <div><label>Date of joining</label><input type="date" class="inp" id="ef_doj" value="${e.doj||''}"></div><div><label>Employment status</label><select class="sel" id="ef_status">${['Active','Resigned','Terminated','In-Active'].map(s=>`<option ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+  <div><label>Contract type</label><select class="sel" id="ef_contract">${['Commission','Salary','50 - 50','Retention'].map(s=>`<option ${e.contract===s?'selected':''}>${s}</option>`).join('')}</select></div><div><label>Salary (${esc(S.settings.currency)} / month)</label><input type="number" class="inp" id="ef_salary" value="${e.salary||''}"></div>
+  <div class="full"><label>Other benefits</label><div class="benefits">${BENEFITS.map(b=>`<label><input type="checkbox" value="${b}" ${(e.benefits||[]).includes(b)?'checked':''}>${b}</label>`).join('')}</div><input class="inp mt" id="ef_benefitOther" placeholder="Other benefit details (optional)" value="${esc(e.benefitOther||'')}" style="margin-top:8px"></div>
+  <div><label>Email</label><input class="inp" id="ef_email" value="${esc(e.email||'')}"></div><div><label>Mobile</label><input class="inp" id="ef_mobile" value="${esc(e.mobile||'')}"></div>
+  <div class="full"><label>Notes</label><textarea class="inp" id="ef_notes" rows="2">${esc(e.notes||'')}</textarea></div>
+  <div class="full"><label>Linked sales agent name (from Excel)</label><select class="sel" id="ef_agent" style="width:100%"><option value="">— Not linked —</option>${uniq(T().map(t=>t.agent)).sort().map(a=>`<option ${S.mappings[a]===e.id?'selected':''}>${esc(a)}</option>`).join('')}</select></div>
+  </div></div><div class="mf"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="efSave">Save employee</button></div>`);
+  let photo=e.photo||null;$('#efPhoto').onclick=()=>{$('#imgInput').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;photo=await resizeImage(await readFile(f,'dataurl'));$('#efAvatar').innerHTML=`<img src="${photo}">`;ev.target.value='';};$('#imgInput').click();};if($('#efPhotoRm'))$('#efPhotoRm').onclick=()=>{photo=null;$('#efAvatar').textContent=initials(e.name);};
+  $('#efSave').onclick=async()=>{const v=k=>$('#ef_'+k).value.trim();if(!v('name'))return toast('Employee name is required','err');const emp={...e,name:v('name'),empId:v('empId')||nextEmpId(),title:v('title'),department:v('department'),team:v('team').toUpperCase(),manager:v('manager'),doj:v('doj'),status:v('status'),contract:v('contract'),salary:+v('salary')||0,benefits:$$('.benefits input:checked').map(c=>c.value),benefitOther:v('benefitOther'),email:v('email'),mobile:v('mobile'),notes:v('notes'),photo};
+    if(id){const old=S.employees.find(x=>x.id===id);if(old&&old.name!==emp.name){S.employees.forEach(x=>{if(x.manager===old.name){x.manager=emp.name;DB.put('employees',x);}});}}
+    const i=S.employees.findIndex(x=>x.id===emp.id);i>=0?S.employees[i]=emp:S.employees.push(emp);await DB.put('employees',emp);
+    const ag=v('agent');for(const[a,eid]of Object.entries(S.mappings))if(eid===emp.id&&a!==ag){delete S.mappings[a];await DB.del('mappings',a);}if(ag){S.mappings[ag]=emp.id;await DB.put('mappings',{id:ag,empId:emp.id});}
+    closeModal();toast('Employee saved','ok');renderPage();};}
+function viewEmployee(id){const e=S.employees.find(x=>x.id===id);if(!e)return;const agent=Object.entries(S.mappings).find(([a,eid])=>eid===id)?.[0];const life=agent?T().filter(t=>t.agent===agent):[];const reports=S.employees.filter(x=>x.manager===e.name);
+  modal(`<div class="mh"><h3>Employee profile</h3><button class="btn sm ghost" onclick="closeModal()">✕</button></div><div class="mb"><div class="profile" style="padding:0"><span class="avatar lg">${e.photo?`<img src="${e.photo}">`:esc(initials(e.name))}</span><div><div class="nm">${esc(e.name)}</div><div class="meta"><span><b>${esc(e.title||'—')}</b></span><span>${esc(e.department||'—')} · ${esc(e.team||'—')}</span><span class="tag ${e.status==='Active'?'g':'r'}">${esc(e.status)}</span></div></div></div>
+  <div class="grid g3 mt" style="font-size:12.5px"><div><div class="hint">Employee ID</div><b class="mono">${esc(e.empId)}</b></div><div><div class="hint">Reporting manager</div><b>${esc(e.manager||'—')}</b></div><div><div class="hint">Date of joining</div><b>${fmtDate(e.doj)}</b></div><div><div class="hint">Contract</div><b>${esc(e.contract||'—')}</b></div><div><div class="hint">Salary</div><b>${fmtCur(e.salary,true)}</b></div><div><div class="hint">Benefits</div><b>${esc((e.benefits||[]).join(', ')||'—')}${e.benefitOther?' · '+esc(e.benefitOther):''}</b></div><div><div class="hint">Email</div><b>${esc(e.email||'—')}</b></div><div><div class="hint">Mobile</div><b>${esc(e.mobile||'—')}</b></div><div><div class="hint">Direct reports</div><b>${reports.length?reports.map(r=>esc(r.name)).join(', '):'—'}</b></div></div>
+  ${e.notes?`<p class="hint mt">${esc(e.notes)}</p>`:''}
+  <div class="mt" style="padding-top:12px;border-top:1px solid var(--border)"><div class="hint" style="font-weight:600;margin-bottom:6px">SALES LINK</div>${agent?`Linked to sales agent <b>${esc(agent)}</b> · ${life.length} lifetime closures · ${fmtCur(sum(life,t=>t.net))} net revenue <button class="btn sm" onclick="closeModal();goto('agents',{agent:'${esc(agent)}'})">Open agent profile →</button>`:'<span class="hint">Not linked to a sales agent name.</span>'}</div></div>
+  <div class="mf"><button class="btn" onclick="closeModal()">Close</button><button class="btn primary" onclick="employeeForm('${e.id}')">Edit</button></div>`);}
+async function deleteEmployee(id){const e=S.employees.find(x=>x.id===id);if(!e)return;const reports=S.employees.filter(x=>x.manager===e.name).length;if(!await confirmDlg('Delete employee?',`<b>${esc(e.name)}</b> (${esc(e.empId)}) will be permanently removed from the employee master data.${reports?`<br><br>${reports} employee${reports>1?'s':''} report to this person — they will move to the top level of the organisation chart.`:''}<br><br>Sales transactions are not affected.`))return;S.employees=S.employees.filter(x=>x.id!==id);await DB.del('employees',id);S.employees.forEach(x=>{if(x.manager===e.name){x.manager='';DB.put('employees',x);}});for(const[a,eid]of Object.entries(S.mappings))if(eid===id){delete S.mappings[a];await DB.del('mappings',a);}toast('Employee deleted');renderPage();}
+function exportEmployees(){toXLSX('novara_employees',S.employees.map(e=>({ID:e.empId,Name:e.name,Title:e.title,Department:e.department,Team:e.team,Manager:e.manager,Joined:e.doj,Status:e.status,Contract:e.contract,Salary:e.salary,Benefits:(e.benefits||[]).join('; '),Email:e.email,Mobile:e.mobile,Notes:e.notes})),'Employees');}
+
+/* ============================================================
+   MODULE 10 — Organisation chart (built from Reporting Manager)
+   ============================================================ */
+function orgTree(){const E=S.employees;const byName=new Map(E.map(e=>[e.name,e]));const node=(e,seen)=>{if(seen.has(e.id))return null;seen.add(e.id);const kids=E.filter(x=>x.manager===e.name&&x.id!==e.id).map(k=>node(k,seen)).filter(Boolean);return{name:e.name,value:e.id,emp:e,children:kids};};const seen=new Set();const roots=E.filter(e=>!e.manager||!byName.has(e.manager)).map(e=>node(e,seen)).filter(Boolean);return roots;}
+function renderOrg(){const el=$('#page-org');const roots=orgTree();el.innerHTML=`<div class="ph"><div><h2>Organisation Chart</h2><p>Built dynamically from each employee's reporting manager · ${S.employees.length} employees</p></div><div class="acts"><input class="inp" id="orgSearch" placeholder="Find employee…"><button class="btn sm" onclick="orgFit()">Fit</button><button class="btn sm" onclick="orgExpandAll()">Expand all</button><button class="btn sm" id="orgFs">Fullscreen</button><button class="btn primary" onclick="employeeForm()">+ Add employee</button></div></div><div class="card org-wrap" id="orgWrap"><div id="orgChart" style="width:100%;height:100%"></div></div>`;
+  if(!S.employees.length)return $('#orgChart').innerHTML='<div class="empty" style="height:100%">Add employees and set their reporting manager to build the organisation chart.</div>';
+  const data=roots.length>1?[{name:S.settings.company,value:'root',emp:{title:'Organisation',department:'',status:''},children:roots}]:roots;
+  const c=chart('orgChart',{tooltip:{formatter:p=>{const e=p.data.emp||{};return`<b>${esc(p.name)}</b><br>${esc(e.title||'')}<br>${esc(e.department||'')} ${e.team?'· '+esc(e.team):''}<br>${esc(e.status||'')}`}},series:[{type:'tree',data,orient:'TB',roam:true,expandAndCollapse:true,initialTreeDepth:3,top:40,bottom:40,left:20,right:20,symbolSize:[150,54],symbol:'rect',edgeShape:'polyline',edgeForkPosition:'50%',lineStyle:{color:cssv('--border-strong'),width:1.2},itemStyle:{color:cssv('--surface'),borderColor:cssv('--border-strong'),borderWidth:1},label:{position:'inside',color:cssv('--text'),fontSize:11,lineHeight:14,formatter:p=>{const e=p.data.emp||{};const dot=e.status==='Active'?'{g|●} ':e.status?'{r|●} ':'';return`${dot}{b|${p.name.length>18?p.name.slice(0,17)+'…':p.name}}\n{s|${(e.title||'').slice(0,22)}}\n{s|${(e.team||e.department||'').slice(0,22)}}`},rich:{b:{fontWeight:600,fontSize:11.5,color:cssv('--text')},s:{fontSize:10,color:cssv('--text-3')},g:{color:cssv('--green')},r:{color:cssv('--red')}}},leaves:{label:{position:'inside'}},emphasis:{focus:'descendant'},animationDuration:300}]},{onClick:p=>{if(p.data.value&&p.data.value!=='root')viewEmployee(p.data.value);}});
+  $('#orgSearch').oninput=debounce(e=>{const q=e.target.value.toLowerCase();if(!q)return;const hit=S.employees.find(x=>x.name.toLowerCase().includes(q));if(hit){toast('Found: '+hit.name);viewEmployee(hit.id);}},500);
+  $('#orgFs').onclick=()=>{const w=$('#orgWrap');w.classList.toggle('fs');$('#orgFs').textContent=w.classList.contains('fs')?'Exit fullscreen':'Fullscreen';setTimeout(resizeCharts,50);};
+}
+function orgFit(){const c=S.charts.orgChart;if(c)c.dispatchAction({type:'restore'});renderOrg();}
+function orgExpandAll(){const c=S.charts.orgChart;if(!c)return;c.setOption({series:[{initialTreeDepth:-1}]});}
+
+/* ============================================================
+   MODULE 11 — DATA tab: upload, data.json, sample Excel, GitHub
+   ============================================================ */
+async function loadExcelFile(file){try{showLoading('Processing sales data…',15);await new Promise(r=>setTimeout(r,30));const buf=await readFile(file,'binary');showLoading('Validating columns & cleaning rows…',45);await new Promise(r=>setTimeout(r,30));const data=parseWorkbook(buf,file.name);showLoading('Refreshing dashboard…',85);S.data=data;await DB.put('sales',{id:'current',data});S.sel={team:null,developer:null,agent:null,compare:[]};resetFilters();afterDataLoad();hideLoading();toast(`Loaded ${data.meta.quality.valid} transactions from ${file.name}`,'ok');if(S.github.auto&&S.github.token)publishToGitHub(true);}catch(e){hideLoading();console.error(e);toast(e.message||'Excel upload failed','err');}}
+$('#xlsxInput').onchange=e=>{const f=e.target.files[0];if(f)loadExcelFile(f);e.target.value='';};
+document.addEventListener('click',e=>{if(e.target.closest('#dropWelcome')||e.target.closest('#dropData'))$('#xlsxInput').click();});
+document.addEventListener('dragover',e=>{const d=e.target.closest('.drop');if(d){e.preventDefault();d.classList.add('over');}});
+document.addEventListener('dragleave',e=>{const d=e.target.closest('.drop');if(d)d.classList.remove('over');});
+document.addEventListener('drop',e=>{const d=e.target.closest('.drop');if(!d)return;e.preventDefault();d.classList.remove('over');const f=e.dataTransfer.files[0];if(f&&/\.(xlsx|xlsm|xls|csv)$/i.test(f.name))loadExcelFile(f);else if(f&&/\.json$/i.test(f.name))restoreBackupFile(f);});
+function dataJsonString(){return JSON.stringify(S.data,null,1);}
+function downloadDataJson(){if(!S.data)return toast('No data loaded','err');download('data.json',dataJsonString());}
+function downloadSampleExcel(){const headers=['S.no','AGENT NAME','DATE OF CLOSURE','PROPERTY','UNIT NO','DEVELOPER','CLIENT NAME','RM','SOURCE','MODE OF PAYMENT','TOKEN PAID','DP STATUS','DOC STATUS','PROPERTY VALUE','COMMISSION %','COMMISSION PAYOUT','PASSBACK','VAT (Inclusive)','VAT (Exclusive)','Gross Commission','AGENT %','% TO AGENT','TL %','% TO TEAM LEADER','SH %','% TO SALES HEAD','% TO TELECALLER','Net Revenue for Novara','Total Revenue For Novara','Invoice Number','INVOICE DATE','TEAM','YEAR','MONTH','QTR','MONTH QTR'];const src=T().slice(0,5);const rows=src.length?src.map((t,i)=>[i+1,t.agent,t.date?new Date(t.date):null,t.property,t.unit,t.developer,t.client,t.rm,t.source,t.mop,t.tokenPaid,t.dpStatus,t.docStatus,t.propertyValue,t.commPct,t.commPayout,t.passback,t.vatInc,t.vatExc,t.gross,null,t.toAgent,null,t.toTL,null,t.toSH,t.toTele,t.net,null,t.invoice,t.invoiceDate?new Date(t.invoiceDate):null,t.team,t.date?yearOf(t.date):null,t.date?MONTHS[+t.date.slice(5,7)-1].toUpperCase():null,null,null]):[[1,'JOHN SMITH',new Date('2026-01-15'),'DAMAC HILLS 2','A-101','DAMAC','Mr. Client','SHISHANK','BAYUT','CHEQUE',0.1,'PAID','DONE',1250000,0.03,37500,0,1785.71,0,35714.29,0.3,10714.29,0.1,3571.43,0.1,3571.43,0,17857.14,17857.14,'NP-2026-1001',new Date('2026-01-20'),'TITANS',2026,'JAN','11 TO 20','QTR 1']];const ws=XLSX.utils.aoa_to_sheet([['TOTAL CLOSURES NOVARA'],headers,...rows]);ws['!cols']=headers.map(h=>({wch:Math.max(12,h.length+2)}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'CLOSURE DATA SHEET MAIN');const guide=XLSX.utils.aoa_to_sheet([['Novara BI — Excel template guide'],[''],['Row 1 is a title row; row 2 must contain the headers exactly as shown (order can change — headers are matched by name).'],['Required: AGENT NAME, DATE OF CLOSURE, DEVELOPER, Net Revenue for Novara, TEAM'],['Dates: real Excel dates preferred. DD/MM/YYYY text also works. If DATE is blank, YEAR + MONTH are used to estimate the month.'],['Net Revenue: numeric. "AED 25,000" style text is converted automatically.'],['Leave fully blank rows — they are ignored. Do not put totals inside the data rows.'],['An optional sheet named e.g. "2025" with two columns (Category | Amount) is imported as an expense summary.']]);XLSX.utils.book_append_sheet(wb,guide,'README');XLSX.writeFile(wb,'novara_sales_template.xlsx');}
+function backupObject(){return{app:'Novara Business Intelligence',version:1,exportedAt:new Date().toISOString(),employees:S.employees,mappings:S.mappings,targets:S.targets,settings:S.settings,github:{...S.github,token:undefined}};}
+function downloadBackup(){download('novara_backup_'+todayISO()+'.json',JSON.stringify(backupObject(),null,1));}
+async function restoreBackupFile(f){try{const o=JSON.parse(await readFile(f,'text'));if(!o.employees&&!o.transactions)throw new Error('Not a Novara backup or data.json file');if(o.transactions){S.data=o;await DB.put('sales',{id:'current',data:o});resetFilters();afterDataLoad();return toast('data.json loaded','ok');}if(!await confirmDlg('Restore backup?',`This will replace ${S.employees.length} employee records, mappings, targets and settings with the backup from ${fmtDate(o.exportedAt)}.`,'Restore'))return;await DB.clear('employees');await DB.clear('mappings');await DB.clear('targets');S.employees=o.employees||[];for(const e of S.employees)await DB.put('employees',e);S.mappings=o.mappings||{};for(const[a,eid]of Object.entries(S.mappings))await DB.put('mappings',{id:a,empId:eid});S.targets=o.targets||[];for(const t of S.targets)await DB.put('targets',t);if(o.settings){S.settings={...S.settings,...o.settings};await DB.put('settings',{id:'app',...S.settings});applyTheme();}toast('Backup restored','ok');renderPage();}catch(e){toast(e.message,'err');}}
+$('#jsonInput').onchange=e=>{const f=e.target.files[0];if(f)restoreBackupFile(f);e.target.value='';};
+
+/* ---- GitHub auto-publish (Contents API) ---- */
+const gh={api:'https://api.github.com',
+  hdr(){return{Authorization:'Bearer '+S.github.token,Accept:'application/vnd.github+json','Content-Type':'application/json'};},
+  async test(){const r=await fetch(`${this.api}/repos/${S.github.owner}/${S.github.repo}`,{headers:this.hdr()});if(!r.ok)throw new Error(r.status===401?'Token rejected (401). Check the token and its Contents: read/write permission.':r.status===404?'Repository not found (404). Check owner/repo, or the token lacks access.':'GitHub error '+r.status);return r.json();},
+  async putFile(path,content,message){const url=`${this.api}/repos/${S.github.owner}/${S.github.repo}/contents/${path.replace(/^\//,'')}`;let sha;const g=await fetch(url+`?ref=${encodeURIComponent(S.github.branch||'main')}`,{headers:this.hdr()});if(g.ok)sha=(await g.json()).sha;const b64=btoa(unescape(encodeURIComponent(content)));const r=await fetch(url,{method:'PUT',headers:this.hdr(),body:JSON.stringify({message,content:b64,branch:S.github.branch||'main',sha})});if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error('Publish failed: '+(j.message||r.status));}return r.json();}
+};
+async function saveGithub(){S.github={owner:$('#gh_owner').value.trim(),repo:$('#gh_repo').value.trim(),branch:$('#gh_branch').value.trim()||'main',path:$('#gh_path').value.trim()||'data.json',token:$('#gh_token').value.trim(),auto:$('#gh_auto').checked,backupPath:$('#gh_backup').value.trim(),remember:$('#gh_remember').checked};await DB.put('github',{id:'cfg',...S.github,token:S.github.remember?S.github.token:''});toast('GitHub settings saved','ok');renderData();}
+async function testGithub(){try{await saveGithub();const j=await gh.test();toast(`Connected to ${j.full_name} (default branch ${j.default_branch})`,'ok');S.github.ok=true;renderData();}catch(e){S.github.ok=false;toast(e.message,'err');renderData();}}
+async function publishToGitHub(silent){if(!S.data)return toast('No data to publish','err');if(!S.github.token||!S.github.owner||!S.github.repo)return toast('Configure GitHub in the Data tab first','err');try{if(!silent)showLoading('Publishing data.json to GitHub…',50);const msg=`Update ${S.github.path||'data.json'} — ${S.data.meta.sourceFile} · ${S.data.meta.quality.valid} transactions`;await gh.putFile(S.github.path||'data.json',dataJsonString(),msg);if(S.github.backupPath)await gh.putFile(S.github.backupPath,JSON.stringify(backupObject(),null,1),'Update dashboard backup');S.github.lastPublish=new Date().toISOString();await DB.put('github',{id:'cfg',...S.github,token:S.github.remember?S.github.token:''});hideLoading();toast('Published to GitHub — live site updates in ~1 minute','ok');if(S.page==='data')renderData();}catch(e){hideLoading();toast(e.message,'err');}}
+
+function renderData(){const el=$('#page-data');const m=S.data?.meta;const q=m?.quality;const g=S.github;const unmatched=S.data?uniq(T().map(t=>t.agent)).filter(a=>a!=='UNASSIGNED'&&!empForAgent(a)).length:0;
+  el.innerHTML=`<div class="ph"><div><h2>Data</h2><p>Upload sales data, export data.json, download the Excel template and connect GitHub for auto-publishing</p></div></div>
+  <div class="grid g32">
+  <div class="card"><div class="cb" style="padding:6px 22px 10px">
+    <div class="step"><div class="no">1</div><div style="flex:1"><h4>Upload sales Excel</h4><p>Replaces the sales dataset only. Employee records, photos, mappings, targets and settings are kept. Columns are matched by header name; validation results appear below.</p><div class="drop" id="dropData"><b>Choose Excel file</b> or drag it here<br><span class="hint">.xlsx · headers on row 2 · required: Agent Name, Date of Closure, Developer, Net Revenue for Novara, Team</span></div>${m?`<div class="hint mt">Currently loaded: <b>${esc(m.sourceFile)}</b> · sheet "${esc(m.sheet)}" · ${fmtDate(m.generatedAt)} · generated by ${esc(m.generatedBy)}</div>`:''}</div></div>
+    <div class="step"><div class="no">2</div><div style="flex:1"><h4>Download data.json</h4><p>The exact JSON the dashboard is displaying. Commit it to the same folder as index.html on GitHub Pages (or any static host) and the live dashboard shows the updated figures. Identical to the output of <span class="mono">convert.py</span>.</p><div class="toolbar"><button class="btn primary" onclick="downloadDataJson()">Download data.json</button><button class="btn" onclick="$('#jsonInput').click()">Load data.json / restore backup</button></div></div></div>
+    <div class="step"><div class="no">3</div><div style="flex:1"><h4>Download sample Excel</h4><p>A template workbook with the exact header layout the dashboard expects, seeded with the first rows of your current data plus a README sheet.</p><button class="btn" onclick="downloadSampleExcel()">Download sample Excel</button></div></div>
+    <div class="step"><div class="no">4</div><div style="flex:1"><h4>Connect GitHub (auto-publish)</h4><p>When connected, every Excel upload writes <span class="mono">data.json</span> straight into your repository — no manual download/upload. Create a fine-grained personal access token (GitHub → Settings → Developer settings → Fine-grained tokens) scoped to this one repository with <b>Contents: Read and write</b>.</p>
+      <div class="form"><div><label>Repository owner (user or org)</label><input class="inp" id="gh_owner" value="${esc(g.owner||'')}" placeholder="novara-properties"></div><div><label>Repository name</label><input class="inp" id="gh_repo" value="${esc(g.repo||'')}" placeholder="novara-bi"></div><div><label>Branch</label><input class="inp" id="gh_branch" value="${esc(g.branch||'main')}"></div><div><label>Path to data.json in repo</label><input class="inp" id="gh_path" value="${esc(g.path||'data.json')}"></div><div class="full"><label>Personal access token</label><input class="inp" type="password" id="gh_token" value="${esc(g.token||'')}" placeholder="github_pat_…"></div><div><label>Also publish backup to (optional path)</label><input class="inp" id="gh_backup" value="${esc(g.backupPath||'')}" placeholder="backup/novara_backup.json"></div><div style="display:flex;flex-direction:column;gap:8px;justify-content:flex-end"><label style="display:flex;gap:8px;align-items:center;font-size:12.5px"><input type="checkbox" id="gh_auto" ${g.auto?'checked':''}> Auto-publish after every Excel upload</label><label style="display:flex;gap:8px;align-items:center;font-size:12.5px"><input type="checkbox" id="gh_remember" ${g.remember!==false?'checked':''}> Remember token in this browser</label></div></div>
+      <div class="toolbar mt"><button class="btn" onclick="saveGithub()">Save</button><button class="btn" onclick="testGithub()">Test connection</button><button class="btn primary" onclick="publishToGitHub()">Publish data.json now</button><span class="hint"><span class="status-dot ${g.ok?'ok':g.token?'':'bad'}"></span>${g.ok?'Connected':g.token?'Not tested':'Not connected'}${g.lastPublish?' · last publish '+new Date(g.lastPublish).toLocaleString():''}</span></div>
+      <p class="hint mt">Security: the token is stored only in this browser's local database and sent only to api.github.com. Use a fine-grained token limited to one repository, and revoke it from GitHub at any time. Anyone with access to this browser profile could publish to the repo.</p></div></div>
+  </div></div>
+  <div><div class="card"><div class="ch"><div><h3>Data Quality</h3><p>Is the dashboard trustworthy?</p></div></div><div class="cb">${q?`<div class="dq"><div><b>${fmtNum(q.totalRows)}</b><span>rows read</span></div><div><b>${fmtNum(q.valid)}</b><span>valid transactions</span></div><div class="${q.estimatedDate?'warn':''}"><b>${q.estimatedDate}</b><span>dates estimated from Year/Month</span></div><div class="${q.missingDate?'bad':''}"><b>${q.missingDate}</b><span>rows with no usable date</span></div><div class="${q.missingAgent?'bad':''}"><b>${q.missingAgent}</b><span>missing agent</span></div><div class="${q.missingDeveloper?'warn':''}"><b>${q.missingDeveloper}</b><span>missing developer</span></div><div class="${q.missingTeam?'warn':''}"><b>${q.missingTeam}</b><span>missing team</span></div><div class="${q.invalidRevenue?'bad':''}"><b>${q.invalidRevenue}</b><span>invalid revenue (treated as 0)</span></div><div><b>${q.zeroRevenue}</b><span>zero-revenue closures</span></div><div class="${q.duplicates?'warn':''}"><b>${q.duplicates}</b><span>possible duplicates (kept, flagged)</span></div><div><b>${q.blankRows}</b><span>blank rows skipped</span></div><div class="${unmatched?'warn':''}"><b>${unmatched}</b><span>agent names without employee</span></div></div>`:'<div class="empty">No data loaded.</div>'}</div></div>
+  <div class="card mt"><div class="ch"><div><h3>Column Mapping</h3><p>Detected by header name</p></div></div><div class="cb flush">${m?tableHtml([{h:'Dashboard field',f:r=>`<b>${esc(r[0])}</b>`},{h:'Excel column',f:r=>`<span class="mono">${esc(r[1].letter)}</span>`},{h:'Header',f:r=>esc(r[1].header)}],['agent','date','developer','net','team','property','unit','client','propertyValue','gross','toAgent','invoice','source'].filter(f=>m.columnMap[f]).map(f=>[f,m.columnMap[f]])):''}</div></div>
+  <div class="card mt"><div class="ch"><div><h3>Backup / Restore</h3><p>All non-sales data as JSON</p></div></div><div class="cb"><div class="toolbar"><button class="btn primary" onclick="downloadBackup()">Download backup</button><button class="btn" onclick="$('#jsonInput').click()">Restore backup</button></div><p class="hint mt">Includes employees, photos, org relationships, contract types, salaries, benefits, statuses, agent mappings, targets and settings.</p></div></div>
+  ${S.data?.expenses&&Object.keys(S.data.expenses).length?`<div class="card mt"><div class="ch"><div><h3>Expense Summary (from workbook)</h3><p>Sheet ${esc(Object.keys(S.data.expenses).join(', '))}</p></div></div><div class="cb"><div id="expChart" class="chart"></div><div id="expNote" class="hint mt"></div></div></div>`:''}
+  </div></div>`;
+  if(S.data?.expenses){const yr=Object.keys(S.data.expenses).sort().slice(-1)[0];const items=[...S.data.expenses[yr]].sort((a,b)=>b.amount-a.amount);hbar('expChart',items.slice(0,12).map(i=>({key:i.category,net:i.amount})));const rev=sum(T().filter(t=>yearOf(t.date)===+yr),t=>t.net);const mkt=sum(items.filter(i=>/facebook|instagram|linkedin|bayut|event|google|social/i.test(i.category)),i=>i.amount);const totalExp=sum(items,i=>i.amount);$('#expNote').innerHTML=`${yr}: total recorded expenses ${fmtCur(totalExp)} vs net revenue ${fmtCur(rev)} → operating margin ${fmtPct(pct(rev-totalExp,rev))}. Marketing & lead-gen spend ${fmtCur(mkt)} = ${fmtPct(pct(mkt,rev),1)} of net revenue (blended marketing ROAS ${rev&&mkt?(rev/mkt).toFixed(1)+'×':'N/A'} on net revenue).`;}
+}
+
+/* ============================================================
+   MODULE 12 — Settings & Targets
+   ============================================================ */
+function renderSettings(){const el=$('#page-settings');const s=S.settings;const years=uniq(T().map(t=>yearOf(t.date)).filter(Boolean)).sort();const teams=uniq(T().map(t=>t.team)).sort(),agents=uniq(T().map(t=>t.agent)).sort();
+  el.innerHTML=`<div class="ph"><div><h2>Settings</h2><p>Dashboard preferences, thresholds, agent aliases and targets</p></div></div>
+  <div class="grid g2"><div class="card"><div class="ch"><div><h3>Company & display</h3></div></div><div class="cb"><div class="form"><div><label>Company name</label><input class="inp" id="st_company" value="${esc(s.company)}"></div><div><label>Currency</label><input class="inp" id="st_currency" value="${esc(s.currency)}"></div><div><label>Date format</label><select class="sel" id="st_dateFormat">${['DD MMM YYYY','DD/MM/YYYY','YYYY-MM-DD'].map(f=>`<option ${s.dateFormat===f?'selected':''}>${f}</option>`).join('')}</select></div><div><label>Default dashboard year</label><select class="sel" id="st_defaultYear"><option value="">All years</option>${years.map(y=>`<option ${String(s.defaultYear)===String(y)?'selected':''}>${y}</option>`).join('')}</select></div><div><label>Theme</label><select class="sel" id="st_theme">${['light','dark'].map(f=>`<option ${s.theme===f?'selected':''}>${f}</option>`).join('')}</select></div><div><label>Logo</label><div class="toolbar"><button class="btn sm" id="st_logo">Upload logo</button>${s.logo?'<button class="btn sm ghost" id="st_logoRm">Remove</button>':''}</div></div></div>
+  <h4 class="mt" style="font-size:13px">Activity thresholds (days since last sale)</h4><div class="form mt" style="grid-template-columns:repeat(3,1fr)"><div><label>Active up to</label><input type="number" class="inp" id="st_thAttention" value="${s.thAttention}"></div><div><label>Attention up to</label><input type="number" class="inp" id="st_thWarning" value="${s.thWarning}"></div><div><label>Warning up to (then Critical)</label><input type="number" class="inp" id="st_thCritical" value="${s.thCritical}"></div></div>
+  <h4 class="mt" style="font-size:13px">Agent name aliases <span class="info" data-tip="Merge spelling variants from Excel into one agent. Format: one per line, VARIANT = CANONICAL. Applied on the next Excel upload.">i</span></h4><textarea class="inp mt" id="st_aliases" rows="5" style="width:100%">${esc(Object.entries({...DEFAULT_ALIASES,...s.aliases}).map(([a,b])=>a+' = '+b).join('\n'))}</textarea>
+  <div class="toolbar mt"><button class="btn primary" id="st_save">Save settings</button></div></div></div>
+  <div class="card"><div class="ch"><div><h3>Targets</h3><p>Monthly net revenue targets · progress shown on the Executive Summary</p></div></div><div class="cb"><div class="form" style="grid-template-columns:1fr 1fr 1fr auto;align-items:end"><div><label>Scope</label><select class="sel" id="tg_scope" style="width:100%"><option value="company">Company</option><option value="team">Team</option><option value="agent">Agent</option></select></div><div><label>Name</label><select class="sel" id="tg_name" style="width:100%"><option>—</option></select></div><div><label>Monthly target (${esc(s.currency)})</label><input type="number" class="inp" id="tg_amount" style="width:100%"></div><div><button class="btn primary" id="tg_add">Add</button></div></div><div class="mt" id="tg_list"></div></div></div></div>`;
+  const nameSel=$('#tg_name');const fill=()=>{const sc=$('#tg_scope').value;nameSel.innerHTML=sc==='company'?'<option value="company">Company</option>':(sc==='team'?teams:agents).map(x=>`<option>${esc(x)}</option>`).join('');};fill();$('#tg_scope').onchange=fill;
+  const drawT=()=>{$('#tg_list').innerHTML=S.targets.length?tableHtml([{h:'Scope',f:t=>`<span class="tag b">${esc(t.scope)}</span>`},{h:'Name',f:t=>`<b>${esc(t.name)}</b>`},{h:'Monthly target',r:1,f:t=>fmtCur(t.amount,true)},{h:'',f:t=>`<button class="btn sm danger" onclick="removeTarget('${t.id}')">Remove</button>`}],S.targets):'<div class="hint">No targets yet.</div>';};drawT();
+  $('#tg_add').onclick=async()=>{const t={id:'tg_'+Date.now(),scope:$('#tg_scope').value,name:$('#tg_name').value,amount:+$('#tg_amount').value};if(!t.amount)return toast('Enter a target amount','err');S.targets=S.targets.filter(x=>!(x.scope===t.scope&&x.name===t.name));S.targets.push(t);await DB.put('targets',t);drawT();toast('Target saved','ok');};
+  $('#st_logo').onclick=()=>{$('#imgInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;s.logo=await resizeImage(await readFile(f,'dataurl'),160);await DB.put('settings',{id:'app',...s});applyTheme();renderSettings();e.target.value='';};$('#imgInput').click();};if($('#st_logoRm'))$('#st_logoRm').onclick=async()=>{s.logo=null;await DB.put('settings',{id:'app',...s});applyTheme();renderSettings();};
+  $('#st_save').onclick=async()=>{['company','currency','dateFormat','defaultYear','theme'].forEach(k=>s[k]=$('#st_'+k).value);['thAttention','thWarning','thCritical'].forEach(k=>s[k]=+$('#st_'+k).value||s[k]);const al={};$('#st_aliases').value.split('\n').forEach(l=>{const[a,b]=l.split('=').map(x=>(x||'').trim().toUpperCase());if(a&&b)al[a]=b;});s.aliases=al;await DB.put('settings',{id:'app',...s});applyTheme();toast('Settings saved','ok');buildFilters();renderPage();};}
+async function removeTarget(id){S.targets=S.targets.filter(t=>t.id!==id);await DB.del('targets',id);renderSettings();}
+function targetsHtml(){if(!S.targets.length||!T().length)return'';const d=new Date();const mk=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;const p=currentPeriod();const months=p?Math.max(1,Math.round((new Date(p.to)-new Date(p.from))/2592000000)):1;const list=p?filterTx():T().filter(t=>monthKey(t.date)===mk);const lbl=p?`selected period (${months} month${months>1?'s':''})`:monthLbl(mk);return`<div class="card mt"><div class="ch"><div><h3>Target Achievement</h3><p>Actual vs monthly targets · ${esc(lbl)}</p></div><button class="btn sm ghost" onclick="goto('settings')">Manage targets</button></div><div class="cb"><div class="grid g3">${S.targets.map(t=>{const actual=sum(list.filter(x=>t.scope==='company'||(t.scope==='team'?x.team===t.name:x.agent===t.name)),x=>x.net);const target=t.amount*months;const ach=pct(actual,target)||0;return`<div style="padding:12px;border:1px solid var(--border);border-radius:10px"><div style="display:flex;justify-content:space-between;font-size:12.5px"><b>${esc(t.name)}</b><span class="tag ${ach>=100?'g':ach>=70?'a':'r'}">${fmtPct(ach,0)}</span></div><div class="bar mt ${ach>=100?'g':ach>=70?'a':'r'}" style="margin-top:8px"><i style="width:${clamp(ach,0,100)}%"></i></div><div class="hint" style="margin-top:6px">Actual ${fmtCur(actual)} · Target ${fmtCur(target)} · Variance ${fmtCur(actual-target)}</div></div>`;}).join('')}</div></div></div>`;}
+
+/* ============================================================
+   MODULE 13 — Global search, theme, bootstrap
+   ============================================================ */
+function globalSearch(q){const box=$('#gresults');if(!q||q.length<2||!S.data)return box.classList.remove('open');q=q.toLowerCase();const grp=[];const add=(t,items)=>{if(items.length)grp.push({t,items:items.slice(0,6)});};const all=T();
+  add('Agents',uniq(all.map(t=>t.agent)).filter(a=>a.toLowerCase().includes(q)).map(a=>({l:a,s:fmtCur(sum(all.filter(t=>t.agent===a),t=>t.net)),go:()=>goto('agents',{agent:a})})));
+  add('Teams',uniq(all.map(t=>t.team)).filter(a=>a.toLowerCase().includes(q)).map(a=>({l:a,s:fmtCur(sum(all.filter(t=>t.team===a),t=>t.net)),go:()=>goto('teams',{team:a})})));
+  add('Developers',uniq(all.map(t=>t.developer)).filter(a=>a.toLowerCase().includes(q)).map(a=>({l:a,s:fmtCur(sum(all.filter(t=>t.developer===a),t=>t.net)),go:()=>goto('developers',{developer:a})})));
+  add('Projects',uniq(all.map(t=>t.property).filter(Boolean)).filter(a=>a.toLowerCase().includes(q)).map(a=>({l:a,s:uniq(all.filter(t=>t.property===a).map(t=>t.developer)).join(', '),go:()=>{const d=all.find(t=>t.property===a);goto('developers',{developer:d.developer});}})));
+  add('Employees',S.employees.filter(e=>JSON.stringify(e).toLowerCase().includes(q)).map(e=>({l:e.name,s:e.title||'',go:()=>viewEmployee(e.id)})));
+  add('Clients / Units / Invoices',all.filter(t=>[t.client,t.unit,t.invoice].some(x=>x&&String(x).toLowerCase().includes(q))).map(t=>({l:`${t.client||'—'} · ${t.unit||''} · ${t.invoice||''}`,s:`${t.agent} · ${fmtDate(t.date)} · ${fmtCur(t.net)}`,go:()=>goto('agents',{agent:t.agent})})));
+  if(!grp.length){box.innerHTML='<div class="empty">No matches.</div>';return box.classList.add('open');}S._search=grp;box.innerHTML=grp.map((g,gi)=>`<div class="grp">${g.t}</div>`+g.items.map((it,ii)=>`<div class="it" data-g="${gi}" data-i="${ii}"><span>${esc(it.l)}</span><small>${esc(it.s)}</small></div>`).join('')).join('');box.classList.add('open');}
+$('#gsearch').oninput=debounce(e=>globalSearch(e.target.value),200);$('#gsearch').onclick=e=>e.stopPropagation();
+$('#gresults').onclick=e=>{const it=e.target.closest('.it');if(!it)return;S._search[+it.dataset.g].items[+it.dataset.i].go();$('#gresults').classList.remove('open');$('#gsearch').value='';};
+function applyTheme(){document.documentElement.dataset.theme=S.settings.theme||'light';$('#brandName').textContent=S.settings.company||'Novara Properties';$('#brandLogo').innerHTML=S.settings.logo?`<img src="${S.settings.logo}">`:(S.settings.company||'N')[0];if(S.data)renderPage();}
+$('#themeBtn').onclick=async()=>{S.settings.theme=S.settings.theme==='dark'?'light':'dark';await DB.put('settings',{id:'app',...S.settings});applyTheme();};
+function afterDataLoad(){const m=S.data.meta;$('#hdrMeta').innerHTML=`<b>${esc(m.sourceFile)}</b><br>Data updated: ${new Date(m.generatedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}`;$('#sideFoot').innerHTML=`${fmtNum(m.quality.valid)} transactions<br>${fmtDate(m.dateRange.from)} → ${fmtDate(m.dateRange.to)}`;const n=alerts().filter(a=>a.k==='CRITICAL'||a.k==='WARNING').length;const b=$('#alertBadge');b.style.display=n?'':'none';b.textContent=n;buildFilters();renderPage();}
+function renderPage(){const act=$('#page-'+S.page);Object.keys(S.charts).forEach(k=>{const e=document.getElementById(k);if(!e||!act.contains(e)){S.charts[k].dispose();delete S.charts[k];}});const p=S.page;try{({dashboard:()=>{renderDashboard();if(T().length){const t=targetsHtml();if(t)$('#kpis').insertAdjacentHTML('afterend',t);}},teams:renderTeams,developers:renderDevelopers,agents:renderAgents,leaderboard:renderLeaderboard,alerts:renderAlerts,employees:renderEmployees,org:renderOrg,data:renderData,settings:renderSettings})[p]();}catch(e){console.error(e);$('#page-'+p).innerHTML=`<div class="card"><div class="empty">Something went wrong rendering this page.<br><span class="hint">${esc(e.message)}</span></div></div>`;}setTimeout(resizeCharts,30);}
+
+(async function init(){
+  $('#todayLbl').textContent=new Date().toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+  await DB.open();
+  const st=(await DB.getAll('settings')).find(x=>x.id==='app');if(st){const{id,...rest}=st;S.settings={...S.settings,...rest};}
+  S.employees=await DB.getAll('employees');S.mappings=Object.fromEntries((await DB.getAll('mappings')).map(m=>[m.id,m.empId]));S.targets=await DB.getAll('targets');
+  const g=(await DB.getAll('github')).find(x=>x.id==='cfg');if(g){const{id,...rest}=g;S.github=rest;}
+  applyTheme();
+  // data.json (from convert.py / GitHub) takes precedence; else last uploaded Excel from IndexedDB
+  let loaded=false;try{const r=await fetch('data.json',{cache:'no-store'});if(r.ok){const j=await r.json();if(j&&j.transactions){S.data=j;loaded=true;}}}catch(e){}
+  if(!loaded){const c=(await DB.getAll('sales')).find(x=>x.id==='current');if(c){S.data=c.data;loaded=true;}}
+  if(loaded){if(S.settings.defaultYear&&T().some(t=>yearOf(t.date)===+S.settings.defaultYear))S.filters.years=[+S.settings.defaultYear];afterDataLoad();}else{$('#hdrMeta').innerHTML='No data loaded';renderPage();}
+})();
+</script>
+</body>
+</html>
